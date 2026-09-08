@@ -21,6 +21,14 @@ corepack pnpm run ci
 
 The workspace packages are `apps/extension`, `apps/worker`, and `packages/contracts`. Build output is generated under each application's ignored output directory.
 
+Validate the native rate-limit binding configuration with:
+
+```text
+corepack pnpm --filter @lettercast/worker build:rate-limit-validation
+```
+
+This uses the non-production `rate-limit-validation` Wrangler environment. Its documented example namespace and threshold are configuration-test values only; LC-013 must approve account-specific production values before deployment.
+
 ## V1 Scope
 
 V1 targets canonical Letterboxd movie pages only. It will render a separate, extension-owned cast block without editing Letterboxd's existing cast markup.

@@ -13,6 +13,7 @@ import {
   type WorkerDependencies,
   type WorkerEnvironment,
 } from "../src/index";
+import type { CastRateLimiter } from "../src/rate-limiter";
 import { TmdbError, type TmdbErrorKind } from "../src/tmdb-errors";
 
 const ALLOWED_ORIGIN = `chrome-extension://${"a".repeat(32)}`;
@@ -69,6 +70,17 @@ function successfulProvider(): ReturnType<
   return vi.fn<WorkerDependencies["getCast"]>(async () => cast);
 }
 
+function allowingRateLimiter(): CastRateLimiter {
+  return { check: async () => "allowed" };
+}
+
+function createTestWorker(
+  cache: EdgeCache,
+  getCast: WorkerDependencies["getCast"],
+): ReturnType<typeof createWorker> {
+  return createWorker({ cache, rateLimiter: allowingRateLimiter(), getCast });
+}
+
 describe("cast cache", () => {
   it("creates a canonical header-free GET key from the fixed route and ID", () => {
     const inbound = new Request(
@@ -88,7 +100,7 @@ describe("cast cache", () => {
   it("caches a normalized success and bypasses downstream on the hit", async () => {
     const cache = memoryCache();
     const getCast = successfulProvider();
-    const worker = createWorker({ cache, getCast });
+    const worker = createTestWorker(cache, getCast);
 
     const first = await worker.fetch(request(), environment);
     const second = await worker.fetch(request(), environment);
@@ -111,7 +123,7 @@ describe("cast cache", () => {
     const getCast = vi.fn<WorkerDependencies["getCast"]>(() =>
       Promise.reject(new TmdbError("NOT_FOUND")),
     );
-    const worker = createWorker({ cache, getCast });
+    const worker = createTestWorker(cache, getCast);
 
     const first = await worker.fetch(request(), environment);
     const second = await worker.fetch(request(), environment);
@@ -142,7 +154,7 @@ describe("cast cache", () => {
     const getCast = vi.fn<WorkerDependencies["getCast"]>(() =>
       Promise.reject(new TmdbError(kind)),
     );
-    const worker = createWorker({ cache, getCast });
+    const worker = createTestWorker(cache, getCast);
 
     await worker.fetch(request(), environment);
 
@@ -158,7 +170,7 @@ describe("cast cache", () => {
       put: vi.fn<Cache["put"]>(async () => undefined),
     };
     const getCast = successfulProvider();
-    const worker = createWorker({ cache, getCast });
+    const worker = createTestWorker(cache, getCast);
 
     const response = await worker.fetch(request(), environment);
 
@@ -175,7 +187,7 @@ describe("cast cache", () => {
       ),
     };
     const getCast = successfulProvider();
-    const worker = createWorker({ cache, getCast });
+    const worker = createTestWorker(cache, getCast);
 
     const first = await worker.fetch(request(), environment);
     const second = await worker.fetch(request(), environment);
@@ -193,7 +205,7 @@ describe("cast cache", () => {
       put: vi.fn<Cache["put"]>(async () => undefined),
     };
     const getCast = successfulProvider();
-    const worker = createWorker({ cache, getCast });
+    const worker = createTestWorker(cache, getCast);
 
     const response = await worker.fetch(request(), environment);
 
@@ -208,7 +220,7 @@ describe("cast cache", () => {
       put: vi.fn<Cache["put"]>(async () => undefined),
     };
     const getCast = successfulProvider();
-    const worker = createWorker({ cache, getCast });
+    const worker = createTestWorker(cache, getCast);
 
     const [first, second] = await Promise.all([
       worker.fetch(request(), environment),

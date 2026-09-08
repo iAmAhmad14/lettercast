@@ -8,18 +8,24 @@ import {
   writeNotFoundCache,
 } from "./cast-cache";
 import { evaluateOrigin } from "./origin-policy";
+import {
+  type CastRateLimiter,
+  createNativeCastRateLimiter,
+  type RateLimitEnvironment,
+} from "./rate-limiter";
 import { castResponse, errorResponse } from "./responses";
 import { routeRequest } from "./route";
 import { createTmdbCastProvider } from "./tmdb-client";
 import { mapTmdbError, TmdbError } from "./tmdb-errors";
 
-export type WorkerEnvironment = {
+export type WorkerEnvironment = RateLimitEnvironment & {
   ALLOWED_EXTENSION_ORIGIN?: string;
   TMDB_API_TOKEN?: string;
 };
 
 export type WorkerDependencies = {
   cache: EdgeCache;
+  rateLimiter: CastRateLimiter;
   getCast(
     tmdbId: number,
     environment: WorkerEnvironment,
@@ -64,6 +70,17 @@ export function createWorker(
         return errorResponse("INVALID_ID", 404, origin.origin);
       }
 
+      const rateLimitDecision = await dependencies.rateLimiter.check(
+        route.tmdbId,
+        environment,
+      );
+      if (rateLimitDecision === "denied") {
+        return errorResponse("RATE_LIMITED", 429, origin.origin);
+      }
+      if (rateLimitDecision === "unavailable") {
+        return errorResponse("BACKEND_UNAVAILABLE", 503, origin.origin);
+      }
+
       try {
         const result = await dependencies.getCast(route.tmdbId, environment);
         await writeCastCache(dependencies.cache, cacheKey, result);
@@ -86,6 +103,7 @@ export function createWorker(
 const getTmdbCast = createTmdbCastProvider();
 const worker = createWorker({
   cache: caches.default,
+  rateLimiter: createNativeCastRateLimiter(),
   getCast(tmdbId, environment) {
     return getTmdbCast(tmdbId, environment.TMDB_API_TOKEN);
   },

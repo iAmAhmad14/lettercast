@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "wrangler deploy --dry-run --outdir dist",
+    "build": "wrangler deploy --env= --dry-run --outdir dist",
+    "build:rate-limit-validation": "wrangler deploy --env rate-limit-validation --dry-run --outdir dist",
     "cf-typegen": "wrangler types src/worker-configuration.d.ts",
     "postinstall": "wrangler types src/worker-configuration.d.ts",
-    "test": "vitest run",
+    "test": "vitest run && node ../../scripts/verify-rate-limit-key.mjs",
     "typecheck": "corepack pnpm cf-typegen && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

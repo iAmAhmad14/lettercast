@@ -7,6 +7,7 @@ import {
   type WorkerDependencies,
   type WorkerEnvironment,
 } from "../src/index";
+import type { CastRateLimiter } from "../src/rate-limiter";
 
 const ALLOWED_ORIGIN = `chrome-extension://${"a".repeat(32)}`;
 const OTHER_ORIGIN = `chrome-extension://${"b".repeat(32)}`;
@@ -31,6 +32,10 @@ function emptyCache(): EdgeCache {
     match: vi.fn(async () => undefined),
     put: vi.fn(async () => undefined),
   };
+}
+
+function allowingRateLimiter(): CastRateLimiter {
+  return { check: async () => "allowed" };
 }
 
 function request(
@@ -58,7 +63,14 @@ function setup(result: CastResponse = cast): {
     return result;
   });
 
-  return { worker: createWorker({ cache: emptyCache(), getCast }), getCast };
+  return {
+    worker: createWorker({
+      cache: emptyCache(),
+      rateLimiter: allowingRateLimiter(),
+      getCast,
+    }),
+    getCast,
+  };
 }
 
 describe("Cloudflare Worker HTTP boundary", () => {
@@ -173,7 +185,11 @@ describe("Cloudflare Worker HTTP boundary", () => {
     const getCast = vi.fn<WorkerDependencies["getCast"]>(() =>
       Promise.reject(new Error("sensitive upstream detail")),
     );
-    const worker = createWorker({ cache: emptyCache(), getCast });
+    const worker = createWorker({
+      cache: emptyCache(),
+      rateLimiter: allowingRateLimiter(),
+      getCast,
+    });
 
     const response = await worker.fetch(
       request("/v1/movie/603/cast"),
