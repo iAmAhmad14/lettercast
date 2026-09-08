@@ -1,0 +1,122 @@
+.lettercast-cast {
+  box-sizing: border-box;
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 0.5rem;
+  background: rgb(20 24 28 / 72%);
+  color: #d8e0e8;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.lettercast-cast *,
+.lettercast-cast *::before,
+.lettercast-cast *::after {
+  box-sizing: border-box;
+}
+
+.lettercast-cast [hidden] {
+  display: none !important;
+}
+
+.lettercast-cast__title {
+  margin: 0 0 0.75rem;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.lettercast-cast__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(80px, 100%), 1fr));
+  gap: 1rem 0.75rem;
+  margin: 0;
+}
+
+.lettercast-cast__card {
+  min-width: 0;
+  margin: 0;
+}
+
+.lettercast-cast__portrait,
+.lettercast-cast__image,
+.lettercast-cast__placeholder {
+  width: 80px;
+  max-width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.25rem;
+}
+
+.lettercast-cast__portrait {
+  overflow: hidden;
+  background: #2c3440;
+}
+
+.lettercast-cast__image {
+  display: block;
+  height: auto;
+  object-fit: cover;
+}
+
+.lettercast-cast__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  background: #2c3440;
+  color: #9eabb7;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.lettercast-cast__name,
+.lettercast-cast__character {
+  overflow-wrap: anywhere;
+  margin: 0.4rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.lettercast-cast__name {
+  color: #fff;
+  font-weight: 700;
+}
+
+.lettercast-cast__character {
+  margin-top: 0.15rem;
+  color: #9eabb7;
+}
+
+.lettercast-cast__credits {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  color: #9eabb7;
+}
+
+.lettercast-cast__credits p {
+  margin: 0;
+  font-size: 0.625rem;
+  line-height: 1.35;
+}
+
+.lettercast-cast__tmdb-logo {
+  display: block;
+  flex: 0 0 auto;
+  width: 46px;
+  height: 33px;
+}
+
+@media (max-width: 360px) {
+  .lettercast-cast {
+    padding: 0.75rem;
+  }
+
+  .lettercast-cast__grid {
+    gap: 0.75rem 0.5rem;
+  }
+}
