@@ -1,0 +1,17 @@
+{
+  "name": "@lettercast/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "cf-typegen": "wrangler types src/worker-configuration.d.ts",
+    "postinstall": "wrangler types src/worker-configuration.d.ts",
+    "test": "vitest run",
+    "typecheck": "corepack pnpm cf-typegen && tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.1.5",
+    "wrangler": "4.129.1"
+  }
+}

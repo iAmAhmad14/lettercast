@@ -1,0 +1,27 @@
+{
+  "name": "lettercast",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": "24.18.0",
+    "pnpm": "12.3.4"
+  },
+  "scripts": {
+    "build": "corepack pnpm -r --if-present build && node scripts/verify-manifest.mjs",
+    "ci": "corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test && corepack pnpm build && corepack pnpm test:e2e",
+    "lint": "eslint .",
+    "test": "corepack pnpm -r --if-present test",
+    "test:e2e": "vitest run --passWithNoTests tests/e2e",
+    "typecheck": "corepack pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.5.0",
+    "eslint": "10.10.0",
+    "jsdom": "30.0.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.0",
+    "vitest": "4.1.11"
+  }
+}

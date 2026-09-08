@@ -1,10 +1,25 @@
 # Lettercast
 
-Lettercast is a planned browser extension that enhances Letterboxd film pages with actor profile images and character names sourced from TMDB.
+Lettercast is a browser extension project that enhances Letterboxd film pages with actor profile images and character names sourced from TMDB.
 
 ## Project Status
 
-The project is currently in the architecture phase. No extension or backend implementation has been scaffolded yet. pnpm is the confirmed package manager, but setup, development, build, and test commands will be documented only after the corresponding configuration exists.
+The pnpm workspace now contains an inert WXT Manifest V3 extension, an inert module-format Cloudflare Worker, shared-contract scaffolding, and baseline test environments. Product functionality has not yet been implemented.
+
+## Development
+
+Node 24.18.0 and pnpm 12.3.4 are pinned. Run pnpm through Corepack:
+
+```text
+corepack pnpm install --frozen-lockfile
+corepack pnpm lint
+corepack pnpm typecheck
+corepack pnpm test
+corepack pnpm build
+corepack pnpm run ci
+```
+
+The workspace packages are `apps/extension`, `apps/worker`, and `packages/contracts`. Build output is generated under each application's ignored output directory.
 
 ## V1 Scope
 
@@ -28,7 +43,10 @@ Only the TMDB movie ID may leave the browser. V1 does not require Letterboxd coo
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) is the current source of truth for scope, boundaries, decisions, and unresolved implementation spikes.
+- [Architecture](docs/architecture.md) is the current source of truth for scope and runtime boundaries.
+- [Decision records](docs/decisions/) protect accepted architectural decisions.
+- [Spike notes](docs/spikes/) contain verified implementation evidence.
+- [Implementation plan](docs/implementation-plan.md) defines the ordered v1 tasks.
 - [Repository Guidelines](AGENTS.md) contains stable rules for contributors and coding agents.
 
-Contributors should read both documents before making implementation changes. Open implementation spikes must be verified rather than guessed, and major architectural changes should be recorded through an ADR once the decision-record system exists.
+Contributors should read the repository guidelines and architecture before implementation changes. New uncertainties must be verified rather than guessed, and major architectural changes require an ADR.

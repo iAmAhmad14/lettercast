@@ -1,0 +1,10 @@
+node_modules/
+coverage/
+dist/
+.output/
+.wxt/
+.wrangler/
+apps/worker/src/worker-configuration.d.ts
+.dev.vars
+.dev.vars.*
+!.dev.vars.example

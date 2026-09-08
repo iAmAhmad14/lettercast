@@ -13,7 +13,7 @@ These items must be completed in the tasks below and must not be resolved by add
 
 ## Plan Conventions
 
-The expected layout is a minimal pnpm workspace with `apps/extension`, `apps/worker`, `packages/contracts`, and `tests/e2e`. Task LC-001 establishes the actual tool-native paths; later path references mean those paths or their documented equivalents. It also creates the canonical root scripts. After LC-001, every task runs the relevant subset of `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`; browser smoke tests use `pnpm test:e2e`, and the final aggregate check uses `pnpm ci`.
+The expected layout is a minimal pnpm workspace with `apps/extension`, `apps/worker`, `packages/contracts`, and `tests/e2e`. Task LC-001 establishes the actual tool-native paths; later path references mean those paths or their documented equivalents. It also creates the canonical root scripts. After LC-001, every task runs the relevant subset of `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`; browser smoke tests use `pnpm test:e2e`, and the final aggregate check uses `pnpm run ci`.
 
 ## LC-001 — Scaffold the Workspace and Toolchain
 
@@ -245,7 +245,7 @@ The expected layout is a minimal pnpm workspace with `apps/extension`, `apps/wor
 
 **Tests required:** Automated manifest assertions; forbidden-code/permission scans; Worker secret-missing behavior; deployment smoke for cache hit/miss and limiter denial; privacy-focused request inspection.
 
-**Validation:** `pnpm ci`; Wrangler dry run; authorized non-production deployment smoke; manual built-manifest and network-trace review.
+**Validation:** `pnpm run ci`; Wrangler dry run; authorized non-production deployment smoke; manual built-manifest and network-trace review.
 
 **References:** Architecture §§1–3, 9–10, 14–16; ADR 0001; ADR 0002; ADR 0007; ADR 0008; rate-limiting spike.
 
@@ -261,9 +261,9 @@ The expected layout is a minimal pnpm workspace with `apps/extension`, `apps/wor
 
 **Definition of done:** A clean checkout can follow the committed instructions; CI performs install, lint, type-check, tests, security assertions, and builds; required checks need no production secret; documentation agrees with the shipped manifest and Worker configuration.
 
-**Tests required:** Validate CI locally through `pnpm ci`; verify documentation commands verbatim; inspect one produced extension artifact and one Worker dry run.
+**Tests required:** Validate CI locally through `pnpm run ci`; verify documentation commands verbatim; inspect one produced extension artifact and one Worker dry run.
 
-**Validation:** `pnpm install --frozen-lockfile`; `pnpm ci`; `pnpm test:e2e` where supported; review `git diff --check` and generated artifacts.
+**Validation:** `pnpm install --frozen-lockfile`; `pnpm run ci`; `pnpm test:e2e` where supported; review `git diff --check` and generated artifacts.
 
 **References:** `AGENTS.md`; Architecture §§13–16; all accepted ADRs; all completed spike notes.
 

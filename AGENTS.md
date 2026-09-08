@@ -4,7 +4,18 @@
 
 `docs/architecture.md` is the current source of truth for system scope, boundaries, security, and v1 decisions. Read it before making implementation changes. This file contains durable contributor rules and must not duplicate or redefine the architecture.
 
-The confirmed package manager is pnpm. The project has not been scaffolded, so do not invent setup, build, test, repository-layout, style, naming, or commit conventions. Document commands only after committed configuration makes them real.
+The repository is a pnpm workspace. Node and pnpm versions are pinned in `.node-version` and `package.json`; use Corepack rather than another package manager. The extension lives in `apps/extension`, the Cloudflare Worker in `apps/worker`, shared contracts in `packages/contracts`, and future browser smoke tests in `tests/e2e`.
+
+The committed root commands are:
+
+- `corepack pnpm install --frozen-lockfile` — install the exact lockfile.
+- `corepack pnpm lint` — run repository lint rules.
+- `corepack pnpm typecheck` — type-check every workspace package.
+- `corepack pnpm test` — run current unit and runtime tests.
+- `corepack pnpm build` — build the Worker and extension and verify Manifest V3.
+- `corepack pnpm run ci` — run the aggregate validation sequence.
+
+Do not invent additional style, naming, or commit conventions; follow committed configuration and document new commands only after they exist.
 
 ## Boundaries and Validation
 
@@ -31,8 +42,8 @@ Validate runtime messages at the service-worker boundary. Validate Cloudflare ba
 
 Never commit credentials. Keep the TMDB secret in Cloudflare through Wrangler secrets, outside the extension bundle and repository.
 
-## Open Questions and Decisions
+## Spikes and Decisions
 
-Unresolved implementation spikes in `docs/architecture.md` must be verified rather than guessed or silently assumed. Record evidence before converting a spike result into architecture.
+Implementation uncertainties must be verified rather than guessed or silently assumed. Record evidence before converting a spike result into architecture.
 
-Once an ADR system exists, major architectural changes require an ADR and a corresponding update to the current architecture documentation. Do not change an invariant incidentally while working on another component.
+Major architectural changes require an ADR and a corresponding update to the current architecture documentation. Do not change an invariant incidentally while working on another component.
