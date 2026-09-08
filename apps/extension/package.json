@@ -7,7 +7,7 @@
     "build": "wxt build",
     "dev": "wxt",
     "postinstall": "wxt prepare",
-    "test": "vitest run && node ../../scripts/verify-service-worker-boundary.mjs",
+    "test": "vitest run && node ../../scripts/verify-service-worker-boundary.mjs && node ../../scripts/verify-content-identity-boundary.mjs",
     "typecheck": "wxt prepare && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
