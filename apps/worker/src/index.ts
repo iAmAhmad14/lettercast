@@ -3,13 +3,19 @@ import type { CastResponse } from "@lettercast/contracts";
 import { evaluateOrigin } from "./origin-policy";
 import { castResponse, errorResponse } from "./responses";
 import { routeRequest } from "./route";
+import { createTmdbCastProvider } from "./tmdb-client";
+import { mapTmdbError } from "./tmdb-errors";
 
 export type WorkerEnvironment = {
   ALLOWED_EXTENSION_ORIGIN?: string;
+  TMDB_API_TOKEN?: string;
 };
 
 export type WorkerDependencies = {
-  getCast(tmdbId: number): Promise<CastResponse>;
+  getCast(
+    tmdbId: number,
+    environment: WorkerEnvironment,
+  ): Promise<CastResponse>;
 };
 
 export type LettercastWorker = {
@@ -42,18 +48,24 @@ export function createWorker(
       }
 
       try {
-        const result = await dependencies.getCast(route.tmdbId);
+        const result = await dependencies.getCast(route.tmdbId, environment);
         return castResponse(result, origin.origin);
-      } catch {
-        return errorResponse("BACKEND_UNAVAILABLE", 503, origin.origin);
+      } catch (error) {
+        const publicError = mapTmdbError(error);
+        return errorResponse(
+          publicError.error,
+          publicError.status,
+          origin.origin,
+        );
       }
     },
   };
 }
 
+const getTmdbCast = createTmdbCastProvider();
 const worker = createWorker({
-  async getCast() {
-    throw new Error("Cast provider is not implemented");
+  getCast(tmdbId, environment) {
+    return getTmdbCast(tmdbId, environment.TMDB_API_TOKEN);
   },
 });
 

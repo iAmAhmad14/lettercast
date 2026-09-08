@@ -65,7 +65,7 @@ describe("Cloudflare Worker HTTP boundary", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(cast);
     expect(getCast).toHaveBeenCalledOnce();
-    expect(getCast).toHaveBeenCalledWith(693134);
+    expect(getCast).toHaveBeenCalledWith(693134, environment);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe(
       ALLOWED_ORIGIN,
     );
