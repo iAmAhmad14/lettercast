@@ -1,10 +1,17 @@
 import type { CastResponse } from "@lettercast/contracts";
 
+import {
+  createCastCacheKey,
+  type EdgeCache,
+  readCastCache,
+  writeCastCache,
+  writeNotFoundCache,
+} from "./cast-cache";
 import { evaluateOrigin } from "./origin-policy";
 import { castResponse, errorResponse } from "./responses";
 import { routeRequest } from "./route";
 import { createTmdbCastProvider } from "./tmdb-client";
-import { mapTmdbError } from "./tmdb-errors";
+import { mapTmdbError, TmdbError } from "./tmdb-errors";
 
 export type WorkerEnvironment = {
   ALLOWED_EXTENSION_ORIGIN?: string;
@@ -12,6 +19,7 @@ export type WorkerEnvironment = {
 };
 
 export type WorkerDependencies = {
+  cache: EdgeCache;
   getCast(
     tmdbId: number,
     environment: WorkerEnvironment,
@@ -47,10 +55,23 @@ export function createWorker(
         );
       }
 
+      const cacheKey = createCastCacheKey(request, route.tmdbId);
+      const cached = await readCastCache(dependencies.cache, cacheKey);
+      if (cached.kind === "hit") {
+        return castResponse(cached.value, origin.origin);
+      }
+      if (cached.kind === "not-found") {
+        return errorResponse("INVALID_ID", 404, origin.origin);
+      }
+
       try {
         const result = await dependencies.getCast(route.tmdbId, environment);
+        await writeCastCache(dependencies.cache, cacheKey, result);
         return castResponse(result, origin.origin);
       } catch (error) {
+        if (error instanceof TmdbError && error.kind === "NOT_FOUND") {
+          await writeNotFoundCache(dependencies.cache, cacheKey);
+        }
         const publicError = mapTmdbError(error);
         return errorResponse(
           publicError.error,
@@ -64,6 +85,7 @@ export function createWorker(
 
 const getTmdbCast = createTmdbCastProvider();
 const worker = createWorker({
+  cache: caches.default,
   getCast(tmdbId, environment) {
     return getTmdbCast(tmdbId, environment.TMDB_API_TOKEN);
   },
