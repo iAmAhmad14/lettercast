@@ -27,7 +27,7 @@ Validate the native rate-limit binding configuration with:
 corepack pnpm --filter @lettercast/worker build:rate-limit-validation
 ```
 
-This uses the non-production `rate-limit-validation` Wrangler environment. Its documented example namespace and threshold are configuration-test values only; LC-013 must approve account-specific production values before deployment.
+This uses the non-production `rate-limit-validation` Wrangler environment. Its documented example namespace and threshold are configuration-test values only. Account-specific production approval remains a release blocker recorded in the [deployment and security review](docs/deployment-review.md).
 
 ## V1 Scope
 
@@ -55,6 +55,7 @@ Only the TMDB movie ID may leave the browser. V1 does not require Letterboxd coo
 - [Decision records](docs/decisions/) protect accepted architectural decisions.
 - [Spike notes](docs/spikes/) contain verified implementation evidence.
 - [Implementation plan](docs/implementation-plan.md) defines the ordered v1 tasks.
+- [Deployment and security review](docs/deployment-review.md) records verified checks and release blockers.
 - [Repository Guidelines](AGENTS.md) contains stable rules for contributors and coding agents.
 
 Contributors should read the repository guidelines and architecture before implementation changes. New uncertainties must be verified rather than guessed, and major architectural changes require an ADR.

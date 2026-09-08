@@ -5,6 +5,7 @@ import {
   chromium,
   expect,
   type BrowserContext,
+  type Request as PlaywrightRequest,
   type Route,
   test,
 } from "@playwright/test";
@@ -66,14 +67,14 @@ async function configureFixture(
     html: string;
     backendStatus?: number;
     backendBody?: unknown;
-    onBackendRequest?: (url: string, method: string) => void;
+    onBackendRequest?: (request: PlaywrightRequest) => void | Promise<void>;
     failImage?: boolean;
   },
 ): Promise<void> {
   await context.route(pageUrl, (route) => fulfillPage(route, options.html));
   await context.route(backendUrl, async (route) => {
     const request = route.request();
-    options.onBackendRequest?.(request.url(), request.method());
+    await options.onBackendRequest?.(request);
     await route.fulfill({
       status: options.backendStatus ?? 200,
       contentType: "application/json",
@@ -93,12 +94,24 @@ async function openFixture(context: BrowserContext) {
 
 test("enhances a supported fixture through real MV3 messaging", async () => {
   const html = await readFile(fixturePath, "utf8");
-  const requests: Array<{ url: string; method: string }> = [];
+  const requests: Array<{
+    url: string;
+    method: string;
+    body: string | null;
+    headers: Record<string, string>;
+  }> = [];
   const context = await launchExtension();
   try {
     await configureFixture(context, {
       html,
-      onBackendRequest: (url, method) => requests.push({ url, method }),
+      onBackendRequest: async (request) => {
+        requests.push({
+          url: request.url(),
+          method: request.method(),
+          body: request.postData(),
+          headers: await request.allHeaders(),
+        });
+      },
     });
     const page = await openFixture(context);
 
@@ -109,14 +122,41 @@ test("enhances a supported fixture through real MV3 messaging", async () => {
     await expect(page.locator(".lettercast-cast__character")).toHaveText(
       "Trinity",
     );
-    expect(requests).toEqual([{ url: backendUrl, method: "GET" }]);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({
+      url: backendUrl,
+      method: "GET",
+      body: null,
+    });
+    expect(requests[0]?.headers.cookie).toBeUndefined();
+    const firstRequestTrace = JSON.stringify(requests[0]).toLowerCase();
+    for (const prohibited of [
+      pageUrl,
+      "letterboxd.com",
+      "the matrix",
+      "sample two",
+    ]) {
+      expect(firstRequestTrace).not.toContain(prohibited.toLowerCase());
+    }
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-lettercast-cast]")).toHaveCount(1);
-    expect(requests).toEqual([
-      { url: backendUrl, method: "GET" },
-      { url: backendUrl, method: "GET" },
-    ]);
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).toMatchObject({
+      url: backendUrl,
+      method: "GET",
+      body: null,
+    });
+    expect(requests[1]?.headers.cookie).toBeUndefined();
+    const reloadRequestTrace = JSON.stringify(requests[1]).toLowerCase();
+    for (const prohibited of [
+      pageUrl,
+      "letterboxd.com",
+      "the matrix",
+      "sample two",
+    ]) {
+      expect(reloadRequestTrace).not.toContain(prohibited.toLowerCase());
+    }
   } finally {
     await context.close();
   }
