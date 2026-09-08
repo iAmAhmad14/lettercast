@@ -1,0 +1,2 @@
+TMDB_API_TOKEN="replace-with-a-local-development-token"
+ALLOWED_EXTENSION_ORIGIN="chrome-extension://replace-with-the-unpacked-extension-id"

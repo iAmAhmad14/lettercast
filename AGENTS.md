@@ -4,7 +4,7 @@
 
 `docs/architecture.md` is the current source of truth for system scope, boundaries, security, and v1 decisions. Read it before making implementation changes. This file contains durable contributor rules and must not duplicate or redefine the architecture.
 
-The repository is a pnpm workspace. Node and pnpm versions are pinned in `.node-version` and `package.json`; use Corepack rather than another package manager. The extension lives in `apps/extension`, the Cloudflare Worker in `apps/worker`, shared contracts in `packages/contracts`, and future browser smoke tests in `tests/e2e`.
+The repository is a pnpm workspace. Node and pnpm versions are pinned in `.node-version` and `package.json`; use Corepack rather than another package manager. The extension lives in `apps/extension`, the Cloudflare Worker in `apps/worker`, shared contracts in `packages/contracts`, and browser smoke tests in `tests/e2e`.
 
 The committed root commands are:
 
@@ -13,6 +13,8 @@ The committed root commands are:
 - `corepack pnpm typecheck` — type-check every workspace package.
 - `corepack pnpm test` — run current unit and runtime tests.
 - `corepack pnpm build` — build the Worker and extension and verify Manifest V3.
+- `corepack pnpm security` — inspect built artifacts and sources for permission, endpoint, credential, and code-loading violations.
+- `corepack pnpm test:e2e` — build the test-mode extension and run mocked-network Chromium smoke tests.
 - `corepack pnpm run ci` — run the aggregate validation sequence.
 
 Do not invent additional style, naming, or commit conventions; follow committed configuration and document new commands only after they exist.

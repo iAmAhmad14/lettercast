@@ -67,7 +67,9 @@ The outbound `/movie/{id}/` link is the primary identity signal. `body[data-tmdb
 
 Lettercast renders a new block built entirely from TMDB results, ordered using TMDB data. Letterboxd's own cast nodes remain untouched. This structurally avoids false actor attribution and guarantees that extension failure cannot corrupt the native cast display.
 
-Rendering must be idempotent and use `textContent` and safe property/attribute assignment, never external-data `innerHTML`. Missing character data is omitted. Missing or failed images use a neutral placeholder. The exact block layout, item count, and styling remain implementation decisions.
+Rendering must be idempotent and use `textContent` and safe property/attribute assignment, never external-data `innerHTML`. Missing character data is omitted. Missing or failed images use a neutral placeholder.
+
+The v1 implementation renders at most ten members in TMDB order in a responsive grid. Portraits reserve an 80-by-120 CSS-pixel area, and the renderer supplies required TMDB attribution. These are implementation details, not additional identity or matching rules.
 
 No actor-to-actor matching is permitted, including matching by name, position, slug, or inferred ordering.
 
@@ -128,7 +130,7 @@ Schemas model only fields Lettercast uses. Malformed or schema-invalid responses
 
 The Worker calls only `GET /movie/{id}/credits`, once per eligible cache miss. It validates `cast[].id`, `name`, `character`, `profile_path`, and `order`, then converts empty or missing optional values to `null`. No per-actor requests or TV fallback are allowed.
 
-TMDB's documented profile sizes currently include `w45`, `w185`, `h632`, and `original`. The [image-size spike](spikes/2026-09-08-tmdb-profile-image-size.md) verified that `w185` loads from `https://image.tmdb.org/t/p/` and supplies about two source pixels per CSS pixel when rendered at 92 CSS pixels wide. Use `w185` as the v1 default implementation candidate for portraits no wider than approximately 92 CSS pixels. Re-evaluate the size if the final layout is wider or uses responsive `srcset`; `w92` must not be treated as an official profile size merely because it currently resolves.
+TMDB's documented profile sizes currently include `w45`, `w185`, `h632`, and `original`. The [image-size spike](spikes/2026-09-08-tmdb-profile-image-size.md) verified that `w185` loads from `https://image.tmdb.org/t/p/` and supplies about two source pixels per CSS pixel when rendered at 92 CSS pixels wide. The v1 renderer uses `w185` for its 80-CSS-pixel-wide portraits. Re-evaluate the size only if a later layout exceeds the verified range or adopts responsive `srcset`; `w92` must not be treated as an official profile size merely because it currently resolves.
 
 Direct TMDB CDN loading is the approved image-delivery path. Image proxying through the Cloudflare Worker is not justified by current evidence and would require architectural review.
 
@@ -184,11 +186,11 @@ The universal rule is that failures leave Letterboxd usable and unchanged.
 | Missing character or image | Omit the field or use the neutral placeholder |
 | CDN image failure | Replace with the neutral placeholder |
 
-Exact timeout and retry budgets remain implementation details. They must be bounded and cannot make page usability depend on the extension.
+The implemented TMDB request timeout is 5 seconds and the service-worker backend timeout is 10 seconds. Neither boundary retries automatically. These are bounded implementation details and do not make page usability depend on the extension.
 
 ## 12. Performance and Lifecycle Constraints
 
-Enhancement begins at `document_idle` and never blocks Letterboxd's render. Each page view sends at most one cast operation, and each eligible backend cache miss makes at most the approved credits request plus any separately justified bounded retry. There are no per-actor API calls.
+Enhancement begins at `document_idle` and never blocks Letterboxd's render. Each page view sends at most one cast operation, and each eligible backend cache miss makes at most the approved credits request. The v1 implementation performs no automatic retry and no per-actor API call.
 
 DOM work is bounded, idempotent, and performed once. Images should be lazy-loaded with reserved dimensions or aspect ratio to limit layout shift. No document-wide observation is allowed.
 
@@ -202,7 +204,9 @@ Tests must follow the runtime boundaries:
 - Cloudflare runtime tests cover request checks, TMDB validation, Cache API behavior, secrets, and the selected rate-limit configuration.
 - A small browser smoke test covers extension loading, real runtime messaging, rendering, image fallback, and service-worker wake behavior against local fixtures.
 
-Live Letterboxd checks are periodic evidence gathering, not deterministic CI. The repository is not yet scaffolded, so commands and exact test configuration are not defined here.
+Vitest runs deterministic contract, DOM, service-worker, Cloudflare runtime, and cross-boundary integration tests. Playwright runs a limited packaged-extension smoke suite against local fixtures with all external requests intercepted. Root lint, type-check, test, build, security, and browser checks are composed by `corepack pnpm run ci` and require no production credential.
+
+Live Letterboxd markup and CSP checks remain periodic evidence gathering, not deterministic CI. They must not make pull-request checks depend on Letterboxd or TMDB availability.
 
 ## 14. V1 Scope and Non-Goals
 
@@ -220,9 +224,8 @@ The completed notes in [`docs/spikes/`](spikes/) are evidence records. They supp
 
 The five original spikes and the rate-limit key decision are resolved. Remaining uncertainty is implementation-, deployment-, or operational-level:
 
-1. **Cloudflare account verification - deployment-level.** Confirm that the selected account accepts the binding and current Wrangler configuration.
-2. **Rate-limit thresholds - implementation-level.** Select and test a numeric limit using an allowed 10- or 60-second period.
-3. **Final portrait dimensions - UI implementation-level.** Keep `w185` while portraits are at most about 92 CSS pixels wide; revisit only after the layout is known.
-4. **Markup variability - operational risk.** Logged-in, localized, experimental, and future Letterboxd variants remain unsampled. Fixtures, graceful decline, and periodic live verification are the mitigation.
+1. **Cloudflare account verification - deployment-level.** The implementation environment was not authenticated, so an authorized operator must confirm that the selected account accepts the binding and production configuration.
+2. **Rate-limit thresholds - deployment-level.** Select and test an approved numeric limit using an allowed 10- or 60-second period. Committed example values validate configuration shape only.
+3. **Markup variability - operational risk.** Logged-in, localized, experimental, and future Letterboxd variants remain unsampled. Fixtures, graceful decline, and periodic live verification are the mitigation.
 
-No remaining uncertainty materially blocks creation of the v1 implementation plan. These items can be represented as bounded verification or configuration work and do not justify expanding scope.
+No remaining uncertainty blocks local implementation or validation. The Cloudflare account, production threshold, and deployed smoke evidence remain release blockers; they do not justify weakening the architecture or expanding scope.

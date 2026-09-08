@@ -20,6 +20,25 @@ corepack pnpm security
 corepack pnpm --filter @lettercast/worker build:rate-limit-validation
 ```
 
+The complete credential-free repository check is:
+
+```text
+corepack pnpm exec playwright install chromium
+corepack pnpm run ci
+```
+
+GitHub Actions runs the same aggregate validation against mocks and local fixtures. It receives no deployment credential and performs no deployment.
+
+## Local Worker Configuration
+
+Copy `apps/worker/.dev.vars.example` to the ignored `apps/worker/.dev.vars.rate-limit-validation`, provide a development-only TMDB token and the exact unpacked extension origin, and run:
+
+```text
+corepack pnpm --filter @lettercast/worker dev
+```
+
+This exercises the validation environment locally. Its namespace and numeric threshold exist only to validate the binding path and must not be promoted as production approval.
+
 ## Required Release Closure
 
 An authorized operator must complete all of the following:
@@ -31,5 +50,7 @@ An authorized operator must complete all of the following:
 5. Select the deployed HTTPS Worker origin, build the extension with `WXT_LETTERCAST_API_ORIGIN` set to that exact origin, and run `LETTERCAST_EXPECTED_BACKEND_ORIGIN=<origin> corepack pnpm security`.
 6. Configure the Worker to allow the final `chrome-extension://<extension-id>` origin, then smoke-test cache miss, cache hit, and limiter denial without logging detailed viewer history.
 7. Inspect the deployed request: method `GET`, path `/v1/movie/{tmdbId}/cast`, no request body or cookies, and no Letterboxd URL, title, account state, or DOM content.
+
+After release and periodically thereafter, repeat the live Letterboxd markup and CSP probes recorded under `docs/spikes`. Treat drift as operational evidence to investigate; do not replace these probes with nondeterministic pull-request CI.
 
 Cloudflare counters remain location-scoped, asynchronously updated, permissive, and unsuitable for exact accounting. That limitation is accepted; the missing account evidence and approvals are not.

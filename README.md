@@ -1,61 +1,72 @@
 # Lettercast
 
-Lettercast is a browser extension project that enhances Letterboxd film pages with actor profile images and character names sourced from TMDB.
+Lettercast is a Chrome-first Manifest V3 extension that adds an extension-owned cast block to supported Letterboxd movie pages. It uses the page's existing TMDB movie ID and retrieves normalized credits through a narrow Cloudflare Worker API.
 
-## Project Status
+## Status
 
-The pnpm workspace now contains an inert WXT Manifest V3 extension, an inert module-format Cloudflare Worker, shared-contract scaffolding, and baseline test environments. Product functionality has not yet been implemented.
+The v1 implementation and local automated checks are complete. Production release remains blocked on the Cloudflare account setup, rate-limit configuration approval, and deployed smoke checks listed in the [deployment and security review](docs/deployment-review.md).
 
-## Development
+## Repository Layout
 
-Node 24.18.0 and pnpm 12.3.4 are pinned. Run pnpm through Corepack:
+- `apps/extension` — WXT content script and MV3 service worker.
+- `apps/worker` — Cloudflare Worker, TMDB integration, cache, and rate limiter.
+- `packages/contracts` — shared runtime contracts and boundary validators.
+- `tests/e2e` — mocked-network Chromium tests for the packaged extension.
+- `docs` — architecture, ADRs, spike evidence, plan, and release review.
+
+## Install and Validate
+
+Node 24.18.0 and pnpm 12.3.4 are pinned. Use Corepack:
 
 ```text
 corepack pnpm install --frozen-lockfile
+corepack pnpm exec playwright install chromium
+corepack pnpm run ci
+```
+
+The aggregate check runs linting, type-checking, unit and integration tests, production builds, security assertions, and the mocked Chromium smoke suite. It requires no TMDB token or Cloudflare credentials. Individual commands are:
+
+```text
 corepack pnpm lint
 corepack pnpm typecheck
 corepack pnpm test
 corepack pnpm build
-corepack pnpm run ci
+corepack pnpm security
+corepack pnpm test:e2e
 ```
 
-The workspace packages are `apps/extension`, `apps/worker`, and `packages/contracts`. Build output is generated under each application's ignored output directory.
+Run `build` before `security`, because the security check inspects generated artifacts. Production outputs are `apps/extension/.output/chrome-mv3` and `apps/worker/dist`.
 
-Validate the native rate-limit binding configuration with:
+## Local Development
+
+For the Worker, copy `apps/worker/.dev.vars.example` to the ignored `apps/worker/.dev.vars.rate-limit-validation`, replace both placeholders, then run:
 
 ```text
-corepack pnpm --filter @lettercast/worker build:rate-limit-validation
+corepack pnpm --filter @lettercast/worker dev
 ```
 
-This uses the non-production `rate-limit-validation` Wrangler environment. Its documented example namespace and threshold are configuration-test values only. Account-specific production approval remains a release blocker recorded in the [deployment and security review](docs/deployment-review.md).
+This local environment uses the documented validation-only rate-limit values; they are not approved production settings. The Worker still requires an exact `chrome-extension://<id>` Origin.
 
-## V1 Scope
+For the extension, provide an HTTPS Worker origin through `WXT_LETTERCAST_API_ORIGIN`, then run:
 
-V1 targets canonical Letterboxd movie pages only. It will render a separate, extension-owned cast block without editing Letterboxd's existing cast markup.
+```text
+corepack pnpm --filter @lettercast/extension dev
+```
 
-Movie identity must come from a validated TMDB reference already present on the page. The extension will not use fuzzy title/year searches, actor-name matching, or TV fallbacks. If identity or cast data cannot be verified, it will leave the page unchanged.
+Without that variable, the generated manifest intentionally has no backend host permission. The deterministic Playwright suite supplies its own test-only HTTPS origin and mocks every external request.
 
-## Architecture Overview
+The extension accepts only HTTPS backend origins. Use an HTTPS deployment or tunnel for manual extension-to-Worker integration; the default local Wrangler HTTP server is for Worker-focused development. Use `test:e2e` for credential-free local end-to-end coverage.
 
-The system has three runtime boundaries:
+## Release Configuration
 
-- A content script reads and renders the Letterboxd page without making network requests.
-- An MV3 service worker validates messages and acts as the extension's sole network egress.
-- A Cloudflare Worker protects the TMDB credential, calls TMDB, validates and normalizes responses, caches results, and applies abuse controls.
+The TMDB token must be stored as a Wrangler secret, never in Git or an extension bundle:
 
-The backend exposes one narrow cast operation and is not a general-purpose TMDB proxy.
+```text
+corepack pnpm --filter @lettercast/worker exec wrangler secret put TMDB_API_TOKEN --env production
+```
 
-## Privacy and Security
+Run that command only after the production Wrangler environment exists. Follow [docs/deployment-review.md](docs/deployment-review.md) for the remaining rate-limit, origin, artifact, and live-deployment checks.
 
-Only the TMDB movie ID may leave the browser. V1 does not require Letterboxd cookies, account information, client-side storage, or analytics. The TMDB credential remains in Cloudflare as a Wrangler secret and must never enter the extension bundle or repository.
+## Documentation Authority
 
-## Documentation
-
-- [Architecture](docs/architecture.md) is the current source of truth for scope and runtime boundaries.
-- [Decision records](docs/decisions/) protect accepted architectural decisions.
-- [Spike notes](docs/spikes/) contain verified implementation evidence.
-- [Implementation plan](docs/implementation-plan.md) defines the ordered v1 tasks.
-- [Deployment and security review](docs/deployment-review.md) records verified checks and release blockers.
-- [Repository Guidelines](AGENTS.md) contains stable rules for contributors and coding agents.
-
-Contributors should read the repository guidelines and architecture before implementation changes. New uncertainties must be verified rather than guessed, and major architectural changes require an ADR.
+Read [AGENTS.md](AGENTS.md) first for contributor constraints, then [docs/architecture.md](docs/architecture.md) for the v1 source of truth. ADRs under `docs/decisions` protect accepted decisions; spike notes under `docs/spikes` preserve evidence rather than permanent guarantees.
