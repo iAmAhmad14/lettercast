@@ -1,3 +1,4 @@
+import { parseCastResponse } from "@lettercast/contracts";
 import { describe, expect, it } from "vitest";
 import worker from "../src/index";
 
@@ -6,5 +7,9 @@ describe("worker scaffold", () => {
     const response = await worker.fetch();
 
     expect(response.status).toBe(404);
+  });
+
+  it("resolves the shared backend contract", () => {
+    expect(parseCastResponse({ cast: [] })).toEqual({ cast: [] });
   });
 });

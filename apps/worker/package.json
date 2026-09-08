@@ -10,6 +10,9 @@
     "test": "vitest run",
     "typecheck": "corepack pnpm cf-typegen && tsc -p tsconfig.json --noEmit"
   },
+  "dependencies": {
+    "@lettercast/contracts": "workspace:*"
+  },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "1.1.5",
     "wrangler": "4.129.1"
