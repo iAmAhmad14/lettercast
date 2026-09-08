@@ -42,8 +42,10 @@ describe("content-script lifecycle", () => {
     const nativeCast = document.querySelector("#tab-panel-cast");
     const originalNativeMarkup = nativeCast?.outerHTML;
     const sendGetCast = vi.fn(
-      async (_request: GetCastRequest): Promise<GetCastResponse> =>
-        successfulResponse(),
+      async (request: GetCastRequest): Promise<GetCastResponse> => {
+        void request;
+        return successfulResponse();
+      },
     );
     const enhancePage = createContentLifecycle({ sendGetCast });
 
