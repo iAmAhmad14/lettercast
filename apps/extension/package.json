@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "wxt build",
+    "build:e2e": "wxt build --mode e2e",
     "dev": "wxt",
     "postinstall": "wxt prepare",
     "test": "vitest run && node ../../scripts/verify-service-worker-boundary.mjs && node ../../scripts/verify-content-identity-boundary.mjs && node ../../scripts/verify-content-script-boundary.mjs",
