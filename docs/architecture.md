@@ -1,278 +1,228 @@
-# Letterboxd × TMDB Cast Enhancement — Architecture Proposal
+# Lettercast Architecture
 
-A browser extension that enhances Letterboxd film pages with actor profile images and character names sourced from TMDB. This document is the architecture design for v1 — no implementation, no folder structure, no code.
+Lettercast is a Chrome-first browser extension that adds actor profile images and character names to Letterboxd movie pages using TMDB data. This document is the current architecture source of truth for v1. Decision history lives in [`docs/decisions/`](decisions/), and implementation evidence lives in [`docs/spikes/`](spikes/).
 
-Before the walkthrough: none of the agreed technology choices are being overridden here. Where this document pushes back, it's on ambiguity the brief itself flagged as open (the cast-enhancement model, TV/movie scope) — those are being resolved, not relitigated.
+This document distinguishes locked architectural decisions from verified implementation facts and remaining questions. It does not define a repository layout or an implementation plan.
 
----
+## 1. Architecture Decisions
 
-## 1. Architecture Summary
+- Build the extension on Manifest V3 with WXT. Use pnpm as the package manager.
+- Support canonical Letterboxd film-detail pages for movies only in v1.
+- Use Model B rendering: add a visually distinct, extension-owned cast block and never edit Letterboxd cast nodes.
+- Identify films only from TMDB identity already present on the page. Never use fuzzy title/year matching or actor identity matching.
+- Separate the system into a DOM-only content script, an ephemeral MV3 service worker, and a public Cloudflare Worker.
+- Make the service worker the extension's sole programmatic network egress and expose only one `get-cast` operation.
+- Keep the TMDB credential only in Cloudflare as a Wrangler secret.
+- Call only TMDB `GET /movie/{id}/credits`; the Cloudflare Worker is not a generic proxy.
+- Use the Workers Cache API for backend caching. Do not use client-side storage in v1.
+- Use Cloudflare's native Workers Rate Limiting binding for coarse abuse mitigation with the resource-scoped key `get-cast:{tmdbMovieId}`. Do not use IP or client identity. See ADR 0008.
+- Load validated profile images directly from TMDB's CDN. This is a browser-managed subresource path, not a second application/API operation. See ADR 0009.
+- Keep permissions and data collection narrow. Do not add analytics, remote scripts, `eval`, `new Function`, or speculative permissions.
 
-Three components, three trust levels:
+## 2. Runtime Boundaries
 
-- **Content script** (Letterboxd film pages only) — reads DOM, extracts a validated TMDB movie ID, asks for cast data, renders an extension-owned block. No network, no secrets, minimal permissions.
-- **MV3 service worker** — the extension's only network egress point. Validates the one message type it accepts, calls the Cloudflare Worker, translates results/errors back. Ephemeral, stateless across wake cycles.
-- **Cloudflare Worker** — the extension's only privileged backend. Holds the TMDB credential, calls exactly one TMDB endpoint, validates and normalizes the response, caches it, rate-limits abuse. Untrusted-caller posture.
-
-The two decisions everything else hangs off:
-
-1. **Cast enhancement is extension-rendered, not Letterboxd-node-editing** (Model B) — this eliminates actor-identity matching as a problem class rather than solving it.
-2. **Movie identity comes from an existing TMDB reference already on the page**, never from fuzzy title/year search — this eliminates wrong-movie risk as a problem class too.
-
-Everything downstream (failure handling, testing, caching) is simpler because these two problems were designed away rather than defended against.
-
-## 2. System Components and Responsibilities
-
-| Component | Owns | Does not own |
+| Component | Owns | Must not own |
 |---|---|---|
-| Content script | Letterboxd DOM reading/writing, identity extraction, idempotency, request dispatch | Network calls, credentials, business validation of TMDB shape |
-| Service worker | Message validation, single fetch to Worker, error translation | TMDB credential, response normalization, caching |
-| Cloudflare Worker | TMDB credential, TMDB call, response validation/normalization, caching, rate limiting | Anything Letterboxd-specific, user accounts, persistence beyond cache |
+| Content script | Letterboxd DOM inspection, movie identity extraction, idempotency, request dispatch, extension-owned rendering | `fetch`/XHR, credentials, TMDB response validation, actor matching |
+| MV3 service worker | Runtime-message validation, the single backend request, backend-response validation, error translation | TMDB credentials, response normalization, persistent correctness state |
+| Cloudflare Worker | Request validation, TMDB credential and call, TMDB response validation, normalization, cache, rate limiting | Letterboxd DOM knowledge, user accounts, a generic proxy, a database |
 
-Five conceptual modules (not necessarily five files, not five classes): Letterboxd DOM adapter, extension orchestration (content script glue), runtime-message contract, TMDB/backend response contract (shared types), Cloudflare TMDB adapter. Each is a boundary because a different *external system* changes independently on the other side of it (Letterboxd's markup, TMDB's schema, the extension's own message shape).
+The boundaries are deliberate trust boundaries. Letterboxd DOM, callers of the public Worker, backend responses, and TMDB responses are all treated as untrusted at their respective boundaries.
 
-## 3. End-to-End Runtime Data Flow
+## 3. Verified Runtime Flow
 
-1. User navigates to a canonical Letterboxd film page → content script runs.
-2. Content script confirms page shape (cast container present) and extracts + validates a TMDB movie ID (see §8). Invalid/absent/TV → stop, page untouched.
-3. Content script checks for its own idempotency marker on the cast container; if present, stop.
-4. Content script sends one message: `{ type: "get-cast", tmdbId: <number> }` to the service worker.
-5. Service worker validates the message shape (Zod), `fetch`es the Cloudflare Worker at `GET /v1/movie/{tmdbId}/cast`.
-6. Cloudflare Worker validates the request (method, id shape, Origin), checks its edge cache, on miss calls TMDB `GET /movie/{id}/credits` with the Bearer secret, validates the TMDB response (Zod), normalizes to `{cast: [{id, name, character, profilePath, order}]}`, writes cache, returns JSON with `Cache-Control`.
-7. Service worker receives the response, maps non-2xx/timeout/parse-failure to a typed error, returns `{ok: true, cast} | {ok: false, error}` to the content script.
-8. Content script renders an extension-owned block from `cast` (or does nothing on error), marks the container as enhanced.
+1. At `document_idle`, the content script checks that it is on a supported film page and locates the server-rendered cast area.
+2. It reads the TMDB type and ID from the page's existing TMDB signals and requires a positive movie ID with agreeing signals. Missing, invalid, conflicting, or TV identity causes a silent stop with no message.
+3. It checks its own idempotency marker. If already enhanced, it stops.
+4. It sends `{ type: "get-cast", tmdbId }` to the service worker.
+5. The service worker validates the message and requests `GET /v1/movie/{tmdbId}/cast` from the Cloudflare Worker.
+6. The Cloudflare Worker validates the method, path ID, and operational Origin/CORS policy, then checks `caches.default`.
+7. On a cache miss, the Worker applies the native rate limiter with `get-cast:{tmdbMovieId}` and calls TMDB `GET /movie/{id}/credits` with its Bearer secret. Numeric thresholds remain deployment configuration.
+8. The Worker validates the TMDB payload, normalizes the fields Lettercast uses, caches an eligible result, and returns the narrow JSON contract.
+9. The service worker validates the backend response and returns a typed success or failure to the content script.
+10. On success, the content script inserts one extension-owned cast block. Profile images load directly from TMDB's CDN. On any failure, Letterboxd's page remains usable and unchanged.
 
-No step depends on state surviving a service-worker sleep/wake cycle.
+No step may depend on service-worker memory surviving suspension. Optional in-memory de-duplication may only be best-effort.
 
-## 4. Content Script Boundary
+## 4. Letterboxd DOM and Lifecycle
 
-**Responsibilities:** page-shape detection, TMDB ID extraction/validation, cast-container location, idempotency check, one outbound message, DOM rendering via `textContent`/attribute assignment (never `innerHTML` with TMDB- or DOM-derived strings), lifecycle handling.
+The 2026-09-08 [TMDB markup spike](spikes/2026-09-08-letterboxd-tmdb-markup.md) and [initial-markup spike](spikes/2026-09-08-letterboxd-initial-cast-markup.md) verified the following on Dune: Part Two, The Matrix, and Parasite:
 
-**Explicitly excluded:** any `fetch`, any credential, any decision about *what counts as valid TMDB data* (that's the shared contract, validated on the service-worker/Worker side — the content script trusts the shape it's handed only because it already went through Zod upstream, not because it re-validates).
-
-**Injection timing:** run at `document_idle`. Letterboxd's film pages are server-rendered per-navigation (not a client-routed SPA for the film→film case), so a fresh content-script execution per film page load is the expected model — this is an assumption to confirm, not treated as certain (see §23). Given that, the default is: no MutationObserver at all. If a spike shows cast markup arrives after initial paint (e.g., behind a "Show All" expando), the fallback is a single `MutationObserver` scoped to the cast container's parent node only, disconnected after first successful read or after a bounded timeout — never `document.body`-wide, never permanent.
-
-**Idempotency:** on successful enhancement, set a data attribute (e.g. `data-lbtmdb-enhanced="1"`) on the cast container. Every entry point checks this first. This is also what makes re-running safe if Letterboxd re-renders part of the page.
-
-## 5. Service Worker and Messaging Boundary
-
-**Why it exists at all:** a content script's network requests run in the context of the host page and are subject to that page's Content-Security-Policy `connect-src` — Letterboxd could tighten its CSP at any time and silently break a content-script-originated `fetch` to your Cloudflare domain, with no way for you to detect or prevent it. A background/service-worker context's network requests are governed by the *extension's* permissions, not the visited page's CSP. That's the concrete reason to route all egress through the service worker rather than fetching directly from the content script. Secondary benefits: it lets the content script hold zero permissions beyond its Letterboxd match pattern, and it centralizes message/error handling in one place.
-
-**Lifecycle:** register the `onMessage` listener at the top level of the entrypoint module (fires reliably on wake). Treat every invocation as a cold start. Any in-memory de-dupe of concurrent identical requests (a nice-to-have, not required) must be documented as best-effort and safe to lose — never load-bearing.
-
-**Messaging contract:** one operation, request/response (not a port — there's no ongoing conversation, just one round trip per page):
-
-```
-Request:  { type: "get-cast", tmdbId: number }
-Response: { ok: true, cast: CastMember[] }
-        | { ok: false, error: "UNSUPPORTED_MEDIA_TYPE" | "BACKEND_UNAVAILABLE"
-                            | "TIMEOUT" | "INVALID_ID" | "RATE_LIMITED" | "UNKNOWN" }
+```html
+<body data-tmdb-type="movie" data-tmdb-id="693134">
+<a href="https://www.themoviedb.org/movie/693134/"
+   data-track-action="TMDB">TMDB</a>
+<div id="tab-panel-cast">
+  <div class="cast-list text-sluglist">...</div>
+</div>
 ```
 
-The service worker validates the inbound message with Zod even though it currently only receives messages from its own content script — the boundary is validated because it's a trust boundary in principle (extension code, running against untrusted page context), not because a hostile page is expected to be message-capable (a page can't call `chrome.runtime.sendMessage` into the extension without `externally_connectable`, which is not declared here). No generic "fetch this URL" operation is ever exposed, by design.
+The current tracking value is uppercase `TMDB`, not the proposal's earlier `TMDb`. The body attributes, outbound TMDB link, and full sampled cast lists were present in initial HTML; the rendered Dune DOM matched the initial cast count. These are verified implementation facts, not a public Letterboxd contract.
 
-## 6. Cloudflare Worker Boundary
+The initial implementation therefore uses `document_idle` with no `MutationObserver`. If required markup is absent, it declines gracefully. A document-wide or permanent observer is prohibited. A bounded, narrowly scoped observer may be considered only if later evidence establishes asynchronous markup; it must not be added speculatively.
 
-Responsibilities, and why each belongs here specifically: validate the request (method + numeric id + Origin check against `chrome-extension://<known-id>` and/or CORS allow-list); hold and apply the TMDB Bearer secret; call exactly one TMDB endpoint; validate TMDB's response shape before trusting it; normalize to the extension's own compact shape; cache the normalized response; apply proportionate rate limiting; translate upstream failures to a small stable error vocabulary; emit minimal diagnostics.
+The outbound `/movie/{id}/` link is the primary identity signal. `body[data-tmdb-id]` and `body[data-tmdb-type="movie"]` corroborate it. The content script must decline before sending a message if the signals are absent, disagree, are invalid, or indicate a non-movie. Markup fixtures and periodic live checks must protect against drift. Logged-in, localized, experimental, and user-scoped variants were not verified by the spike.
 
-**Explicitly not:** a generic proxy, a generic "any TMDB endpoint" pass-through, a user-account backend, or a database — none of those serve the stated purpose (protect the credential, expose a narrow contract), so they're excluded rather than deferred.
+## 5. Rendering Model
 
-**Origin/CORS as an operational control, not authentication:** checking the `Origin: chrome-extension://<id>` header and/or a CORS allow-list filters out casual/browser-based abuse and stray traffic. It is trivially spoofable by anyone making a direct HTTP request with curl — that's stated plainly, not glossed over. It pairs with rate limiting as *layered* mitigation, never presented as auth.
+Lettercast renders a new block built entirely from TMDB results, ordered using TMDB data. Letterboxd's own cast nodes remain untouched. This structurally avoids false actor attribution and guarantees that extension failure cannot corrupt the native cast display.
 
-**TMDB call shape:** `GET /movie/{id}/credits` — not `?append_to_response=credits` on the full movie-details endpoint, because title/poster/overview aren't needed (Letterboxd already renders those); pulling them would mean validating and then discarding fields the product never uses.
+Rendering must be idempotent and use `textContent` and safe property/attribute assignment, never external-data `innerHTML`. Missing character data is omitted. Missing or failed images use a neutral placeholder. The exact block layout, item count, and styling remain implementation decisions.
 
-**Rate limiting mechanism:** Cloudflare's native Workers Rate Limiting binding is the right fit here rather than a KV-based counter or an external service. It gives a Worker a counter to consult per request — pass a key such as an IP and get back whether that key is within budget — with no separate cloud resource to provision; the limit configuration ships with the binding itself. Configure a `simple` limiter keyed on `CF-Connecting-IP`, with a period of 10 or 60 seconds and a request-count limit generous enough for a single Letterboxd browsing session but well below what a scraping loop would sustain. Its real limitation, worth stating plainly: it's a binding-local counter, not a globally synchronized one — treat it as coarse abuse mitigation, not exact usage metering. On a 429, cache remains servable (a rate-limited caller can still get a *cached* response if one exists — the throttle targets TMDB-hitting work, not all traffic).
+No actor-to-actor matching is permitted, including matching by name, position, slug, or inferred ordering.
 
-- **Recommendation / why / tradeoff / status:** Use the Rate Limiting binding over KV-based manual counting → simpler, no extra namespace to manage, purpose-built. Tradeoff: coarser/approximate, and it's a relatively newer Cloudflare primitive so worth a quick confirmation at implementation time that it's available on the account tier in use. **Hard v1 decision** (the Worker is public and discoverable the moment it's deployed, so *some* mitigation is not optional) but the exact limit numbers are safely tunable later.
+## 6. Message and Backend Contracts
 
-## 7. TMDB Integration Strategy
+The runtime contract has one request/response operation:
 
-- Credential: Wrangler secret, Cloudflare-only, never touches the extension bundle.
-- Endpoint: `GET /movie/{id}/credits`, single call per cache-miss request — no per-actor requests, since the credits endpoint already returns the full cast array.
-- Runtime validation: Zod schema for exactly the fields used (`cast[].id`, `.name`, `.character`, `.profile_path`, `.order`); everything else in TMDB's response is ignored, not modeled.
-- Normalization: `{cast: [{id, name, character: string | null, profilePath: string | null, order: number}]}`, cast list capped (e.g., top ~25 by TMDB's own `order`) to bound payload/DOM size for ensemble films.
-- Empty/missing `character` → `null`, rendered as omitted, never as a placeholder guess.
-- Missing `profile_path` → `null`, rendered with a neutral placeholder, never a broken image.
-- 401 (bad/expired credential) → this is an operator-side incident, not a per-request condition: translate to `BACKEND_UNAVAILABLE` for the client and treat as an alert-worthy condition in Worker logs.
-- 404 → surfaced to the client as "decline to enhance," no TV fallback attempted.
-- 429 from TMDB → back off, surface `BACKEND_UNAVAILABLE`/negative-cache briefly, don't retry synchronously against the user's request.
-- 5xx/timeout → one short retry (small timeout budget, no exponential backoff chain) then surface `BACKEND_UNAVAILABLE`.
-- Timeout budget: a few seconds total for the TMDB call; the content script's own wait should be short enough that a slow backend degrades to "no enhancement" rather than a visibly hung page.
+```ts
+type GetCastRequest = { type: "get-cast"; tmdbId: number };
 
-## 8. Letterboxd Integration and Cast-Matching Strategy
+type GetCastResponse =
+  | { ok: true; cast: CastMember[] }
+  | {
+      ok: false;
+      error:
+        | "UNSUPPORTED_MEDIA_TYPE"
+        | "BACKEND_UNAVAILABLE"
+        | "TIMEOUT"
+        | "INVALID_ID"
+        | "RATE_LIMITED"
+        | "UNKNOWN";
+    };
+```
 
-**Page scope (v1):** canonical film-detail pages only — `letterboxd.com/film/<slug>/` and equivalent user-scoped variants of the *same* film page. Explicitly **not** supported: lists, individual reviews, diary entries, search results, actor/person pages, or movie cards embedded in other pages. This is a deliberate scope cut, not an oversight.
+The Cloudflare endpoint is only:
 
-**Movies vs. TV — explicit decision: movies only, no TV/miniseries handling in v1.** Letterboxd sources its film metadata from TMDB, and Letterboxd's own tooling treats this as fundamentally movie-shaped: its TMDB-import mechanism is documented as valid only for movies, explicitly not for TV shows. Supporting TV would mean a second TMDB endpoint shape (`/tv/{id}/aggregate_credits`, episode-scoped cast, different `character` semantics) for a page type the brief already said to avoid unless there's a strong reason — there isn't one yet.
+```text
+GET /v1/movie/{tmdbId}/cast
+```
 
-**Movie identification (the load-bearing decision):**
+Its normalized success payload is:
 
-- Community-documented Letterboxd markup exposes TMDB identity two ways: a `data-tmdb-id` attribute present on at least one page element, and a separate outbound anchor carrying `data-track-action="TMDb"` whose href points at the film's TMDB page. This is directionally reliable but not certain-as-of-today — Letterboxd's markup isn't a public contract and could have shifted since that was documented; confirming current markup is listed as an implementation spike in §23, not assumed here.
-- **Primary signal:** the TMDb outbound anchor's href, because its path segment (`/movie/{id}-slug` vs `/tv/{id}-slug`) disambiguates media type *and* ID in one read — a semantic DOM signal, not a layout-position guess.
-- **Corroborating signal:** the `data-tmdb-id` attribute, used to cross-check the ID parsed from the anchor when both are present.
-- **Validation:** ID must parse as a positive integer; media-type segment must be `movie`. If the two signals disagree, or only one is present with no way to confirm media type, or the segment is `tv`, or nothing is found — **decline to enhance.** No fuzzy title/year search is ever attempted as a fallback; a plausible-but-wrong ID is strictly worse than no enhancement.
-- This check happens **client-side, before any message is sent** — a `/tv/` link means zero network calls, not a wasted round trip that comes back 404.
+```ts
+type CastMember = {
+  id: number;
+  name: string;
+  character: string | null;
+  profilePath: string | null;
+  order: number;
+};
 
-**Cast enhancement model — explicit decision: Model B (extension-owned rendering), not Model A (editing Letterboxd's existing cast nodes).**
+type CastResponse = { cast: CastMember[] };
+```
 
-Why B and not A: Model A requires matching a Letterboxd-rendered actor name to a specific TMDB cast entry — by name string, by position, or some combination — and every one of those is fragile in ways that produce *silently wrong* attribution: TMDB and Letterboxd can differ in cast ordering, credited-as names, romanization, an actor appearing twice (multiple roles), or one dataset simply lagging the other by the sync window Letterboxd itself documents. Given the stated invariant — wrong metadata is worse than omitted metadata — the only way to make wrong-actor-attribution *structurally impossible*, rather than merely unlikely, is to not attempt entry-level identity matching at all.
+No runtime handler accepts an arbitrary URL. No new backend operation or TMDB endpoint may be added without an architecture decision and ADR.
 
-So: the content script leaves Letterboxd's existing cast markup **completely untouched** and inserts a new, extension-owned, visually distinct block (e.g. "Cast, via TMDB" with its own container class) built entirely from the TMDB response, ordered by TMDB's own `order` field, next to the original. If the extension fails at any point, the original cast list is exactly as it always was — nothing was ever at risk of being wrong, because nothing existing was ever touched. The failure mode this model produces is "TMDB's cast list is incomplete/differs slightly from Letterboxd's," which is a disclosed data-completeness limitation, not a false-attribution incident.
+## 7. Validation Boundaries
 
-- **Recommendation:** Model B. **Why:** structurally eliminates the wrong-attribution failure class rather than mitigating it. **Tradeoff:** two cast presentations visible on the page instead of one enriched presentation — slightly more visual footprint, and it doesn't "fix" Letterboxd's own list if Letterboxd's happens to be stale. **Status: hard v1 decision** — it changes what the DOM adapter needs to do and what the Worker's response shape needs to support, so it's not something to leave open into implementation.
+- Validate runtime messages at the service-worker boundary.
+- Validate Cloudflare backend responses at the service-worker boundary.
+- Validate method, path ID, and allowed request shape at the Cloudflare Worker boundary.
+- Validate raw TMDB payloads inside the Cloudflare Worker before normalization or caching.
+- Use TypeScript types without runtime validation for internal values produced entirely by trusted Lettercast code, unless they cross a runtime boundary later.
 
-## 9. Data Models and Validation Boundaries
+Schemas model only fields Lettercast uses. Malformed or schema-invalid responses are never partially trusted or cached.
 
-Three schemas, three places, deliberately not unified into one "shared package" abstraction beyond what's needed:
+## 8. TMDB and Profile Images
 
-- **TMDB raw → validated (Cloudflare Worker, Zod):** only the fields listed in §7.
-- **Backend contract (Cloudflare Worker → service worker, Zod on the service-worker side too — never trust the network call blindly):** `{cast: [{id: number, name: string, character: string | null, profilePath: string | null, order: number}]}`.
-- **Runtime message contract (content script ↔ service worker, Zod on the service-worker side):** the request/response shapes in §5.
+The Worker calls only `GET /movie/{id}/credits`, once per eligible cache miss. It validates `cast[].id`, `name`, `character`, `profile_path`, and `order`, then converts empty or missing optional values to `null`. No per-actor requests or TV fallback are allowed.
 
-Internal-only shapes (e.g. a DOM-rendering view model derived from `CastMember`) use plain TypeScript types — no runtime validation needed for data the extension's own code produced.
+TMDB's documented profile sizes currently include `w45`, `w185`, `h632`, and `original`. The [image-size spike](spikes/2026-09-08-tmdb-profile-image-size.md) verified that `w185` loads from `https://image.tmdb.org/t/p/` and supplies about two source pixels per CSS pixel when rendered at 92 CSS pixels wide. Use `w185` as the v1 default implementation candidate for portraits no wider than approximately 92 CSS pixels. Re-evaluate the size if the final layout is wider or uses responsive `srcset`; `w92` must not be treated as an official profile size merely because it currently resolves.
 
-## 10. Security and Privacy Model
+Direct TMDB CDN loading is the approved image-delivery path. Image proxying through the Cloudflare Worker is not justified by current evidence and would require architectural review.
 
-**Trust boundaries, explicitly:**
+## 9. Network, CSP, Permissions, and Privacy
 
-1. Letterboxd DOM → content script: **untrusted** (external, mutable markup).
-2. Content script → service worker: validated defensively, though practically same-extension.
-3. Service worker → Cloudflare Worker: an owned backend, but still validate the response — a compromised/misconfigured Worker deploy shouldn't get a free pass.
-4. Any caller → Cloudflare Worker: **untrusted** (publicly reachable, discoverable).
-5. TMDB → Cloudflare Worker: external API, validated before use.
+The content script performs no `fetch` or XHR. All Lettercast API traffic flows through the service worker to the one Cloudflare origin. Inserting an approved TMDB `<img>` causes a browser-managed CDN subresource request; it is not a second application/API operation and must not become a route for arbitrary remote resources.
 
-**What leaves the browser: exactly one thing — a TMDB movie ID.** Not the Letterboxd URL, not the page title, not cookies, not session/auth state, not username, not ratings/reviews/lists, not arbitrary DOM/HTML, not browsing history in any broader sense. The extension never reads `document.cookie` or any Letterboxd-authenticated state, and has no reason to request `cookies` permission.
+On 2026-09-08, the [CSP and image-loading spike](spikes/2026-09-08-letterboxd-csp-tmdb-images.md) found no CSP or report-only CSP response header and no CSP meta element on three sampled Letterboxd film pages. A live Chromium probe successfully loaded an inserted `w185` TMDB profile image with no `securitypolicyviolation`. This verifies current compatibility, not a permanent guarantee. Image errors must degrade to a placeholder without affecting the page.
 
-**Worth naming plainly rather than hand-waving:** a TMDB movie ID *is* browsing-activity data — it tells you what film the user is currently looking at. Combined with an IP address in a request log, a series of these over time is a re-derivable watch-page history. This is why:
+Only the TMDB movie ID is sent as Letterboxd-derived application data. Lettercast must not send page URLs, titles, cookies, account state, usernames, ratings, reviews, lists, or DOM content. Direct image requests necessarily request a TMDB profile path from TMDB's CDN; this path originates in the validated backend response, not from Letterboxd identity extraction.
 
-- Production logs should not retain `(IP, tmdbId)` pairs beyond what's operationally necessary for abuse response — short retention, ideally aggregate/count-based rather than per-request-detailed where Cloudflare's tooling allows it.
-- No analytics/telemetry vendor in v1 — none is needed for the product to function, and adding one would mean shipping a third party into the one part of the data flow that's genuinely privacy-sensitive.
-- Development diagnostics (verbose per-request logging, response bodies) are dev-only and must not ship to production logging config.
+Manifest access must be limited to the supported Letterboxd page match and the Cloudflare Worker origin required by the service worker. Do not request `cookies`, `tabs`, `storage`, broad host access, or speculative permissions. Use HTTPS everywhere and the default MV3 extension CSP. Do not add remote scripts, `eval`, `new Function`, analytics, or a telemetry vendor.
 
-**Hard security rules, restated as commitments rather than aspirations:** no TMDB secret ever enters the extension bundle (it exists only as a Wrangler secret); no secrets in the repo; no remote script loading (MV3's default CSP already forbids this — no custom CSP override needed); no `eval`/`new Function`; no generic "fetch anything" message operation; all DOM text sourced from TMDB is inserted via `textContent`/property assignment, never `innerHTML`; HTTPS only, everywhere.
+Origin/CORS checks are layered operational controls, not authentication; direct clients can spoof an Origin header. Production diagnostics must not retain detailed `(IP, tmdbId)` histories beyond operational necessity. Credentials never enter source control or the extension bundle.
 
-## 11. Permissions / CSP Approach
+## 10. Caching and Rate Limiting
 
-- **Content-script match pattern:** the narrowest pattern that matches canonical film pages only (e.g. `*://letterboxd.com/film/*`), not `*://*.letterboxd.com/*`. Manifest-declared `matches` for a content script is sufficient for it to run and read/write that page's DOM — it does not by itself grant it network reach elsewhere.
-- **Host permissions:** the Cloudflare Worker's origin, needed only by the background/service-worker context for its `fetch` call. The content script needs none.
-- **API permissions:** none beyond `scripting`/whatever WXT's manifest generation requires for the declared content script — no `cookies`, no `tabs`, no `storage` (see below), no broad host permission.
-- **CSP:** rely on MV3's default extension CSP (`script-src 'self'`, no remote code) rather than declaring a custom, looser one. There's no feature here that needs one.
-- No speculative permissions "for later" — Firefox and future features get their own permission requests when they're actually built.
+### Architectural decisions
 
-## 12. Caching / Rate-Limiting Strategy
+- Use `caches.default`, not Workers KV, for normalized backend responses.
+- Cache successful responses for approximately 24 hours and not-found results for approximately one hour.
+- Never cache malformed, schema-invalid, authentication-failure, or transient upstream-failure responses as successful data.
+- Keep v1 free of `browser.storage` and client-side caching.
+- Use Cloudflare's native Workers Rate Limiting binding as coarse abuse mitigation, not authentication or exact accounting.
+- Derive the rate-limit key only from the validated movie ID: `get-cast:{tmdbMovieId}`.
+- Do not use IP addresses, cookies, extension/client identifiers, persistent client state, fingerprints, user accounts, or additional identifying data for rate limiting.
+- Check cache before rate-limiting TMDB-hitting work so an eligible cache hit remains servable.
 
-**Client-side (browser.storage): none in v1 — explicitly.** There's no settings UI, no user-specific data worth persisting, and the backend cache already removes the redundant-TMDB-call problem across *all* users, not just one. A per-browser cache would add storage schema, invalidation, and quota-handling complexity for a marginal win. If this changes — e.g. an offline-tolerance requirement emerges — that's a new, justified requirement, not a default.
+### Verified platform details
 
-**Backend caching:** use the Workers **Cache API** (`caches.default`), not Workers KV, as the primary mechanism. Cache key: the normalized request URL, e.g. `https://<worker-host>/v1/movie/{id}/cast`. Freshness: set `Cache-Control: public, max-age=86400` (~24h) on successful normalized responses — cast data changes rarely, and Letterboxd itself documents a real sync lag against TMDB, so a day-scale TTL is consistent with how fresh the underlying data realistically is anyway. Negative caching: cache a 404-equivalent ("not found on TMDB") for a much shorter TTL (e.g. 1h) so a transient TMDB hiccup doesn't get baked in as a false negative for a full day. Malformed/validation-failure responses are **never** cached — always retried fresh next time, since caching a bad shape would compound a bug.
+The [rate-limiting spike](spikes/2026-09-08-cloudflare-workers-rate-limiting.md) verified that the binding is generally available and documented for production use. Current configuration requires Wrangler 4.36.0 or later, a `ratelimits` binding, a positive-integer string `namespace_id`, and a `simple` limit with a 10- or 60-second period. Runtime use returns a `{ success }` result. Counters are per key and Cloudflare location, asynchronously updated, permissive, and unsuitable for exact accounting.
 
-**Why Cache API over KV here:** it's zero-additional-infrastructure (no namespace to provision/bind), and the consistency model it offers (per-edge-location, eventually-consistent-enough) is a fine match for idempotent, non-critical GETs where an occasional cache miss just means one extra TMDB call — not a correctness problem. KV would buy global consistency and explicit programmatic TTL control at the cost of an extra binding and slightly higher write latency; worth revisiting only if hit-rate visibility across regions becomes something that actually needs reasoning about.
+### Resource-key behavior and remaining configuration
 
-**Rate limiting:** covered in §6 — Workers Rate Limiting binding, keyed on IP, interacts with caching such that a rate-limited request can still be served from cache.
+Cloudflare accepts arbitrary string keys and documents resource- and path-specific limits. Lettercast uses `get-cast:{tmdbMovieId}`, derived only from the movie ID already present in the validated request. Requests for the same movie share a counter within a Cloudflare location. This is intentionally not a per-caller limit and does not stop broad enumeration across many movie IDs.
 
-## 13. Failure and Graceful-Degradation Strategy
+The counters are location-scoped, asynchronously updated, permissive, and eventually consistent. They protect upstream work coarsely and are not suitable for exact accounting. Exact request thresholds remain tunable implementation details. Availability must also be confirmed by deployment on the selected Cloudflare account; current public documentation states no binding-specific paid-plan gate, but the account has not been tested. Neither item blocks implementation planning.
 
-Universal rule: **the underlying Letterboxd page is never broken by extension failure.** Every failure mode below resolves to "leave the page as Letterboxd rendered it" or "render a partial, honestly partial, extension block" — never a guess.
+## 11. Failure and Graceful Degradation
 
-| Condition | Behavior |
+The universal rule is that failures leave Letterboxd usable and unchanged.
+
+| Condition | Required behavior |
 |---|---|
-| Unsupported Letterboxd page (not a film page) | Content script never activates (match pattern) |
-| Missing/invalid TMDB identifier | Decline silently; no message sent |
-| TV/miniseries-backed entry | Decline client-side before any request (see §8) |
-| Missing cast container | Decline; log dev-only diagnostic |
-| Backend unavailable | No block rendered; page unaffected |
-| Network timeout | Same as backend unavailable |
-| TMDB auth failure (401) | Surfaced to client as `BACKEND_UNAVAILABLE`; alerting concern on the ops side |
-| TMDB 404 | Decline to enhance; short negative cache |
-| TMDB 429 | `BACKEND_UNAVAILABLE` to client; no synchronous retry storm |
-| TMDB 5xx | One bounded retry, then `BACKEND_UNAVAILABLE` |
-| Schema validation failure (either boundary) | Treated as `UNKNOWN`/backend error; never partially trusted |
-| Zero cast returned | Render nothing, or a minimal "no cast data available" note — never fabricate |
-| Partial cast data (some missing character/image) | Render what's present; omit the missing field per-entry |
-| "Actor match failure" | N/A by design — Model B has no per-actor matching step to fail |
-| Missing profile image | Neutral placeholder, not a broken `<img>` |
-| Missing character name | Omit the character line for that entry |
-| Image load failure at render time | `onerror` swap to the same neutral placeholder |
+| Unsupported page, missing cast container, or invalid/ambiguous identity | Stop without a backend request or DOM change |
+| TV/miniseries identity | Stop client-side; do not attempt a TV endpoint |
+| Backend unavailable or timeout | Render no block |
+| Invalid runtime or backend response | Return a typed failure; trust no partial payload |
+| TMDB 401 | Treat as operator-side backend unavailability |
+| TMDB 404 | Decline to enhance; eligible for short negative caching |
+| TMDB 429 or transient 5xx | Do not create a retry storm; degrade to no enhancement |
+| Empty cast | Render nothing or an honest empty state; never fabricate |
+| Missing character or image | Omit the field or use the neutral placeholder |
+| CDN image failure | Replace with the neutral placeholder |
 
-## 14. Performance Strategy
+Exact timeout and retry budgets remain implementation details. They must be bounded and cannot make page usability depend on the extension.
 
-Enhancement starts at `document_idle`, after Letterboxd's own render — never blocking or racing the host page. One network round trip per page view (content script → service worker → Cloudflare, cache-hit path is typically the common case after the first global request for a given film). No N+1 TMDB calls (credits endpoint returns the full cast in one call). DOM work is bounded (a capped-length list, built once, inserted once). Images use native `loading="lazy"` and reserved dimensions/aspect-ratio placeholders to avoid layout shift as they load. No document-wide observation (§4/§8) — the single largest avoidable performance/complexity cost in a Letterboxd-adjacent extension is exactly that kind of blanket DOM watching, and it's excluded by design, not by discipline.
+## 12. Performance and Lifecycle Constraints
 
-## 15. Testing Architecture
+Enhancement begins at `document_idle` and never blocks Letterboxd's render. Each page view sends at most one cast operation, and each eligible backend cache miss makes at most the approved credits request plus any separately justified bounded retry. There are no per-actor API calls.
 
-**Pure/unit (Vitest, no DOM/network):** TMDB-ID extraction/parsing and its validation rules, response normalization (TMDB raw → backend contract), error-code mapping, cache-key derivation, cast-list capping/ordering logic.
+DOM work is bounded, idempotent, and performed once. Images should be lazy-loaded with reserved dimensions or aspect ratio to limit layout shift. No document-wide observation is allowed.
 
-**Vitest + jsdom:** Letterboxd fixture parsing against saved HTML snapshots (including a "markup changed, our selector no longer matches" fixture, asserting graceful decline, not a crash); enrichment against a fixture with a well-formed cast container; idempotency (run twice on the same DOM, assert single block); partial-data rendering; safe-output assertions (no raw HTML strings ever reach the DOM as markup).
+## 13. Verification Strategy
 
-**Service-worker tests:** exercise the `onMessage` handler directly with an in-memory fake of the extension APIs rather than a real browser — WXT's own testing setup wraps exactly this: its Vitest integration polyfills the extension API with an in-memory implementation, built on the same cross-browser `browser` API abstraction WXT provides at build time, so the same handler code is exercised under test as under Chrome. This is enough to cover message validation and error-mapping without spinning up a real browser for every test.
+Tests must follow the runtime boundaries:
 
-**Cloudflare Worker tests:** request validation (method/shape/Origin), the TMDB adapter (mocked fetch, exercising the 401/404/429/5xx/timeout paths), response normalization, and cache-decision logic (does a given TMDB response get cached, with what TTL, and is a validation failure correctly *not* cached). A Cloudflare-specific Vitest pool (running against the actual `workerd` runtime rather than Node/jsdom mocks) is worth using specifically for the Cache API and secrets-binding behavior — those are exactly the parts that behave subtly differently outside the real runtime, and this project is small enough that adopting it doesn't add meaningful overhead.
+- Pure tests cover ID parsing, boundary schemas, normalization, error mapping, cache keys, ordering, and any chosen cast cap.
+- DOM fixture tests cover the verified `body` attributes, uppercase `TMDB` link, initial cast container, graceful selector failure, idempotency, partial data, and safe rendering.
+- Service-worker tests cover cold-start-safe message handling, request validation, backend validation, and error translation.
+- Cloudflare runtime tests cover request checks, TMDB validation, Cache API behavior, secrets, and the selected rate-limit configuration.
+- A small browser smoke test covers extension loading, real runtime messaging, rendering, image fallback, and service-worker wake behavior against local fixtures.
 
-**Playwright — intentionally small:** real extension load, real content-script execution against a **local static fixture page** styled like a Letterboxd film page (never live Letterboxd — markup drift would make CI flaky for reasons outside anyone's control), real runtime messaging end-to-end, and a service-worker wake/response smoke test. What's *not* practical to guarantee automatically: that today's selectors still match Letterboxd's actual production markup — that's a live-monitoring/manual-spot-check concern, not a CI-automatable one.
+Live Letterboxd checks are periodic evidence gathering, not deterministic CI. The repository is not yet scaffolded, so commands and exact test configuration are not defined here.
 
-## 16. Observability / Debugging
+## 14. V1 Scope and Non-Goals
 
-Development: content-script `console.debug` behind a build-time flag (stripped in production builds), service-worker inspection via the extension's own DevTools background page, Cloudflare Worker `wrangler tail` during development. Structured error categories (the same enum from §5) used consistently across all three layers so a symptom maps to one of a small, known set of causes. Production: no verbose logging, no request-body/PII-adjacent logging, error counts/categories only where Cloudflare's own tooling provides them for free — no bespoke telemetry platform.
+V1 includes movie-page detection, verified TMDB ID extraction, Model B cast rendering, one service-worker message, the narrow Worker endpoint, TMDB validation/normalization, backend caching, coarse abuse mitigation, least-privilege permissions, graceful degradation, and required TMDB attribution.
 
-## 17. V1 Must Have / Should Have / Later
+V1 excludes TV/miniseries support, actor matching, fuzzy search, lists, reviews, diary entries, person pages, embedded movie cards, Firefox release, settings UI, user accounts, a database, client storage, offline support, analytics, recommendations, and arbitrary TMDB metadata. React, a design system, and repository abstractions are not architectural requirements.
 
-**MUST HAVE:** film-page detection + TMDB ID extraction/validation (§8); Model-B cast rendering; service worker + narrow message contract; Cloudflare Worker with credential protection, TMDB call, validation, normalization; backend caching (Cache API); basic rate limiting; graceful-degradation behavior for every case in §13; least-privilege manifest permissions; TMDB attribution notice (minimal form).
+## 15. Decision and Evidence Records
 
-**SHOULD HAVE:** negative caching for TMDB 404s; a small Playwright smoke suite; a Cloudflare-specific Vitest test pool; lazy image loading with placeholder sizing.
+The accepted ADRs in [`docs/decisions/`](decisions/) protect the architecture's major decisions. ADR 0008 replaces ADR 0006's IP-based rate-limit key with `get-cast:{tmdbMovieId}`; ADR 0006's cache, no-client-storage, and native-binding decisions remain accepted. ADR 0009 clarifies that direct profile-image subresources do not weaken the service worker's exclusive ownership of application/API egress or permit additional Letterboxd-derived data collection.
 
-**LATER:** additional cast metadata beyond image/character; Firefox build; any client-side cache; any settings/options UI beyond the attribution notice; multi-page-type support (lists, reviews, actor pages); TV/miniseries handling.
+The completed notes in [`docs/spikes/`](spikes/) are evidence records. They support current implementation details but do not make Letterboxd markup or operational headers stable public contracts.
 
-**Not entering v1, by design, not oversight:** React, a settings UI, user accounts, a database, analytics, recommendations, reviews/ratings features, arbitrary TMDB metadata beyond cast, multiple Letterboxd page types, a Firefox release, offline support, client-side sync, a generic backend framework, a premature design system, speculative abstraction layers.
+## 16. Remaining Questions
 
-## 18. Non-Goals
+The five original spikes and the rate-limit key decision are resolved. Remaining uncertainty is implementation-, deployment-, or operational-level:
 
-Not a general Letterboxd-enhancement platform. Not a TMDB proxy for other extensions or third parties. Not a data-collection product — no user profiling, no cross-session identity, no analytics. Not an authentication system — the CORS/Origin check is abuse mitigation, stated plainly as such, not security theater dressed up as auth.
+1. **Cloudflare account verification - deployment-level.** Confirm that the selected account accepts the binding and current Wrangler configuration.
+2. **Rate-limit thresholds - implementation-level.** Select and test a numeric limit using an allowed 10- or 60-second period.
+3. **Final portrait dimensions - UI implementation-level.** Keep `w185` while portraits are at most about 92 CSS pixels wide; revisit only after the layout is known.
+4. **Markup variability - operational risk.** Logged-in, localized, experimental, and future Letterboxd variants remain unsampled. Fixtures, graceful decline, and periodic live verification are the mitigation.
 
-## 19. Future Firefox Considerations
-
-Nothing in this design is Chrome-exclusive at the architecture level: WXT treats cross-browser output (Chrome, Firefox, Safari, Edge) as a first-class build target and provides a unified `browser` API wrapper over the Chrome/Firefox namespace differences, so writing against that abstraction now costs nothing and pays off later. The one thing that would make Firefox support *materially* harder if done carelessly: leaning on Chrome-specific service-worker quirks instead of the `browser.runtime` messaging shape — this design already avoids that by keeping the message contract minimal and framework-abstracted. Nothing here is deferred *by adding* Firefox-specific code paths now — it's deferred by simply not writing anything that would need undoing.
-
-## 20. Agentic Development Boundaries
-
-**Good independent-agent-task seams** (mapping to the module boundaries in §2, not coincidentally): the Letterboxd DOM adapter (fixture-driven, testable in isolation); TMDB response normalization; the Cloudflare Worker's request-handling/validation/rate-limiting; test fixtures themselves; the Playwright smoke layer.
-
-**Boundaries future agents must not cross casually:**
-
-- An agent working the DOM adapter must not change the runtime-message contract shape.
-- An agent working the Cloudflare Worker must not introduce a second TMDB endpoint or a generic proxy operation without a new ADR.
-- No agent adds `browser.storage`, a new permission, or a new host_permission without that being a deliberate, documented decision — not an incidental implementation convenience.
-- No agent reintroduces per-actor identity matching (i.e., quietly drifts back toward Model A) — this is the single invariant most worth protecting, since it's the one a "helpful" agent might reach for without realizing the tradeoff was already made deliberately.
-- No agent adds a document-wide `MutationObserver` as a "just in case" fix for a flaky selector.
-
-## 21. ADR-Worthy Decisions
-
-Cast enhancement: Model B over Model A. Movie identification: existing-TMDB-reference extraction over fuzzy matching. Scope: movies-only, canonical film pages only, no TV in v1. Service worker as the sole egress point (CSP-of-host-page justification). Messaging: single narrow request/response operation, not a generic fetch bridge. Caching: Workers Cache API over KV. Rate limiting: native Rate Limiting binding, framed as abuse mitigation not authorization. Images: direct-from-TMDB-CDN, not proxied through Cloudflare (pending the CSP spike in §23). No client-side storage in v1.
-
-## 22. Documentation Topics to Create Later
-
-Architecture overview; runtime/data flow; extension boundary responsibilities; MV3 lifecycle assumptions; Letterboxd DOM adapter strategy (and its fixture-update process); TMDB integration/contract; backend request/response contract; security model and trust boundaries; privacy/data-minimization statement (useful verbatim input for the Chrome Web Store privacy disclosure, too); caching and rate-limiting policy; failure-handling matrix (§13 is a first draft of this); testing strategy per layer; observability/debugging guide; deployment boundaries (extension vs. Worker release independence); the ADR list from §21; deferred-decisions log; future-Firefox notes; agent-development invariants.
-
-## 23. Open Questions / Implementation Spikes
-
-These are explicitly *not* decided here — they need a browser/live-site check before implementation, not an assumption baked into the architecture:
-
-1. **Confirm current Letterboxd markup** for the `data-tmdb-id` attribute and the `data-track-action="TMDb"` anchor against today's live film pages — the source behind §8 is not fresh, and Letterboxd's markup is not a contract.
-2. **Confirm whether cast content is present in initial HTML** or arrives after an async/expand interaction — determines whether the fallback scoped-observer path in §4/§8 is needed at all.
-3. **Confirm whether Letterboxd's page-level CSP restricts `img-src`** in a way that would block content-script-inserted `<img>` tags pointing at `image.tmdb.org` — this determines whether "direct from TMDB CDN" (the default recommendation) actually works, or whether images need proxying through Cloudflare after all.
-4. **Confirm current availability/limits of the Workers Rate Limiting binding** on the Cloudflare account tier in use before committing wrangler config to it.
-5. **TMDB profile image size choice** (e.g. `w185` vs `w92`) — a quick visual check against Letterboxd's existing layout width, not an architectural question.
-
-## 24. Final Architecture Decisions
-
-- **Scope:** canonical Letterboxd film pages, movies only, no TV.
-- **Identity:** existing TMDB reference on the page (outbound TMDb link primary, `data-tmdb-id` corroborating); decline on absence/mismatch/TV; no fuzzy matching, ever.
-- **Cast model:** extension-owned rendering (Model B), additive to Letterboxd's own markup, never editing or replacing it.
-- **Boundaries:** content script (DOM only) → service worker (sole egress, ephemeral, stateless) → Cloudflare Worker (credential, TMDB call, validation, normalization, caching, rate limiting).
-- **Messaging:** one narrow request/response operation, Zod-validated, typed error vocabulary.
-- **Storage:** none in v1.
-- **Caching:** Workers Cache API, ~24h positive / ~1h negative TTL.
-- **Rate limiting:** native Rate Limiting binding, IP-keyed, framed as abuse mitigation.
-- **Images:** direct from TMDB's CDN, lazy-loaded, pending the CSP spike.
-- **Security:** least-privilege manifest, no secret in the extension, default MV3 CSP, no generic proxy anywhere in the system.
-- **Testing:** unit → jsdom → service-worker (fake-browser) → Cloudflare Worker (real-runtime pool) → small Playwright smoke, in that order of volume.
-
-This is precise enough to hand to the next phase (repo layout, task breakdown for Codex CLI) without reopening any of the above — the open items in §23 are verification spikes, not undecided architecture.
+No remaining uncertainty materially blocks creation of the v1 implementation plan. These items can be represented as bounded verification or configuration work and do not justify expanding scope.
