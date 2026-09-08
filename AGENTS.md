@@ -2,7 +2,7 @@
 
 ## Authority and Scope
 
-`architectural-proposal.md` is the current source of truth for system scope, boundaries, security, and v1 decisions. Read it before making implementation changes. This file contains durable contributor rules and must not duplicate or redefine the architecture.
+`docs/architecture.md` is the current source of truth for system scope, boundaries, security, and v1 decisions. Read it before making implementation changes. This file contains durable contributor rules and must not duplicate or redefine the architecture.
 
 The confirmed package manager is pnpm. The project has not been scaffolded, so do not invent setup, build, test, repository-layout, style, naming, or commit conventions. Document commands only after committed configuration makes them real.
 
@@ -33,6 +33,6 @@ Never commit credentials. Keep the TMDB secret in Cloudflare through Wrangler se
 
 ## Open Questions and Decisions
 
-Unresolved implementation spikes in `architectural-proposal.md` must be verified rather than guessed or silently assumed. Record evidence before converting a spike result into architecture.
+Unresolved implementation spikes in `docs/architecture.md` must be verified rather than guessed or silently assumed. Record evidence before converting a spike result into architecture.
 
 Once an ADR system exists, major architectural changes require an ADR and a corresponding update to the current architecture documentation. Do not change an invariant incidentally while working on another component.
