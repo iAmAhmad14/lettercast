@@ -8,17 +8,10 @@ Letterboxd's mobile experience shows cast portraits and character names directly
 
 ## Before and after
 
-### GoodFellas
+Comparison screenshots are available in [`docs/assets`](docs/assets/). Open the files directly in the repository:
 
-| Before Lettercast | After Lettercast |
-| :---: | :---: |
-| ![GoodFellas Letterboxd page before Lettercast, showing a text-only cast list](docs/assets/goodfellas-before.png) | ![GoodFellas Letterboxd page after Lettercast, showing cast portraits and character names](docs/assets/goodfellas-after.png) |
-
-### The Odyssey
-
-| Before Lettercast | After Lettercast |
-| :---: | :---: |
-| ![The Odyssey Letterboxd page before Lettercast, showing a text-only cast list](docs/assets/the-odyssey-before.png) | ![The Odyssey Letterboxd page after Lettercast, showing cast portraits and character names](docs/assets/the-odyssey-after.png) |
+- **GoodFellas:** [before Lettercast](docs/assets/goodfellas-before.png) · [after Lettercast](docs/assets/goodfellas-after.png)
+- **The Odyssey:** [before Lettercast](docs/assets/the-odyssey-before.png) · [after Lettercast](docs/assets/the-odyssey-after.png)
 
 ## How it works
 
