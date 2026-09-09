@@ -6,157 +6,152 @@ Hosted GitHub CI has passed on `main`. The implementation plan is complete; this
 
 - [x] **R-01 — Approve release inputs**
   - **Prerequisite:** A designated release owner. **Met.**
-  - **Approved release identity:**
-    - Version: `1.0.0`
-    - Display name: `Lettercast`
-    - Description: `Enhances Letterboxd film pages with TMDB cast photos and character names.`
-    - Chrome Web Store publisher: `Lettercast`
-    - Support email: `support.lettercast@gmail.com`
-  - **Approved distribution:** Initial visibility is `Unlisted`; target v1 visibility is `Public`; regions are `Worldwide`.
-  - **Approved Cloudflare inputs:**
-    - Account name: `Ahmad`
-    - Account ID: `713abfeb39c6d0582c58ad8fc1fa4edf`
-    - Production Worker name: `lettercast-api`
-    - Production Worker origin: `https://lettercast-api.ahmad-713.workers.dev`
-  - **Intentionally pending inputs:** Chrome Web Store item ID: `Pending R-04`; allowed extension origin: `Pending R-04`; production rate-limit configuration: `Pending R-02`.
-  - **Approved privacy summary:** Only the TMDB movie ID leaves the browser. Lettercast does not collect personal data, analytics, cookies, browsing history, client IDs, fingerprints, or user accounts.
-  - **Security constraint:** Do not record TMDB tokens, Cloudflare API tokens, passwords, Wrangler credentials, or other secrets in documentation or source control.
-  - **Verification:** All supplied R-01 values are recorded explicitly; values assigned to later tasks remain clearly pending; no credential or secret is recorded.
-  - **Pass criteria:** **Met.** Release identity, distribution, Cloudflare account/Worker details, privacy disclosure, and secret-handling constraint are documented without inventing R-02 or R-04 values.
-  - **Access:** Human approvals were supplied; no account access or infrastructure action was performed.
+  - **Approved identity:** Version `1.0.0`; display name `Lettercast`; description `Enhances Letterboxd film pages with TMDB cast photos and character names.`; support email `support.lettercast@gmail.com`.
+  - **Approved distribution:** A production ZIP attached to a GitHub Release and installed manually through Chrome Developer Mode using **Load unpacked**. The repository remains private during verification and will be made public only by the owner when ready. No Lettercast-imposed regional restriction applies.
+  - **Approved Cloudflare inputs:** Account `Ahmad`; account ID `713abfeb39c6d0582c58ad8fc1fa4edf`; Worker `lettercast-api`; origin `https://lettercast-api.ahmad-713.workers.dev`.
+  - **Verified R-04 values:** Stable Chrome extension ID `oibdnmbbockloodlflplcjdfpnnlppnl`; allowed extension origin `chrome-extension://oibdnmbbockloodlflplcjdfpnnlppnl`.
+  - **Privacy:** Only the TMDB movie ID leaves the browser. Lettercast collects no personal data, analytics, cookies, browsing history, client IDs, fingerprints, or user accounts.
+  - **Security:** Never record TMDB tokens, Cloudflare API tokens, passwords, Wrangler credentials, private signing keys, or other secrets in documentation or source control.
+  - **Verification/pass:** **Met.** Approved values and the subsequently verified R-04 identity are recorded. No account or infrastructure action was performed.
+  - **Access:** Human approvals supplied; Codex may document them.
 
-- [ ] **R-02 — Approve production rate limiting**
-  - **Prerequisite:** Selected Cloudflare account and expected traffic/abuse tolerance.
-  - **Exact action:** Approve a unique account-scoped `namespace_id`, a numeric limit, and either the supported 10- or 60-second period. Keep the key exactly `get-cast:{tmdbMovieId}` and document that enforcement is location-scoped and eventually consistent.
-  - **Verification:** Compare the approved values with ADR 0008 and the Cloudflare rate-limiting spike.
-  - **Pass criteria:** Values have explicit human approval and introduce no IP, cookie, account, fingerprint, client ID, or storage input.
-  - **Access:** Human decision required; Codex can encode approved values.
+- [x] **R-02 — Approve production rate limiting**
+  - **Prerequisite:** Selected Cloudflare account and expected abuse tolerance. **Met.**
+  - **Approved configuration:** `namespace_id` `"1001"`; limit `60`; period `60` seconds; key `get-cast:{tmdbMovieId}`.
+  - **ADR 0008 compliance:** No IP address, cookie, client ID, fingerprint, account/user ID, or storage-based identity participates in the key.
+  - **Accepted behavior:** Counters are location-scoped, asynchronously updated, permissive, and eventually consistent. This is expected coarse abuse protection, not exact accounting.
+  - **Verification/pass:** **Met.** Values and identity exclusions match ADR 0008 and the completed spike.
+  - **Access:** Human approval supplied; no Cloudflare change was performed.
 
-## Store Identity and Release Assets
+## Extension Identity and Release Assets
 
-- [ ] **R-03 — Prepare the versioned extension candidate**
-  - **Prerequisite:** R-01 and an approved production Worker HTTPS origin.
-  - **Exact action:** Set the approved manifest version, add approved PNG extension icons including 128×128, and build with `WXT_LETTERCAST_API_ORIGIN` set to the exact production origin. Create a ZIP whose root contains `manifest.json`, not an enclosing output directory.
-  - **Verification:** Run `corepack pnpm run ci`, then run `LETTERCAST_EXPECTED_BACKEND_ORIGIN=<origin> corepack pnpm security` in a shell where `WXT_LETTERCAST_API_ORIGIN=<origin>` was used for the build. Inspect the ZIP contents and record its SHA-256 hash.
-  - **Pass criteria:** Checks pass; the manifest version is approved and not `0.0.0`; required icons are packaged; the ZIP contains no source maps, secrets, test hosts, or unrelated files.
-  - **Access:** Codex can prepare/build; humans must approve version and artwork.
+- [x] **R-03 — Prepare the pre-identity extension candidate**
+  - **Prerequisite:** R-01 and the approved production Worker HTTPS origin. **Met.**
+  - **Exact action:** Apply approved manifest metadata and PNG icons, build with the exact production API origin, and create `lettercast-1.0.0-chrome-pre-identity.zip` with `manifest.json` at its root.
+  - **Artifact status:** The ZIP and SHA-256 are pre-identity evidence. R-04 supersedes them after adding the public manifest key. The R-03 ZIP must never be published as the final v1.0.0 artifact.
+  - **Evidence:** `lettercast-1.0.0-chrome-pre-identity.zip`; SHA-256 `aae56710200759895419a7ed74a14af2fe36394a84d7c50a5a51fc4325e10227`.
+  - **Verification:** The complete test/security suite passed with the explicit pre-identity override. Direct ZIP inspection confirmed the root manifest, exact production origin, approved metadata/icons, deployable-file allowlist, and absence of a manifest key or prohibited material.
+  - **Pass criteria:** **Met.** Approved metadata/icons and exact production host permission are present; no manifest key, source maps, secrets, test hosts, development output, or unrelated files are packaged.
+  - **Access:** Codex can complete; artwork and metadata are human-approved.
 
-- [ ] **R-04 — Create the Chrome Web Store draft and obtain its ID**
-  - **Prerequisite:** R-03 and a registered Chrome Web Store publisher with 2-Step Verification.
-  - **Exact action:** Upload the candidate ZIP as a new draft item without publishing it, then record the dashboard item ID. This ID defines the production origin `chrome-extension://<item-id>`.
-  - **Verification:** Confirm the dashboard accepts the package and the recorded ID matches Chrome’s item page.
-  - **Pass criteria:** A draft exists, is not public, and its exact item ID is available for Worker configuration.
-  - **Access:** Human Chrome Web Store credentials/access required.
+- [x] **R-04 — Establish and verify stable unpacked identity**
+  - **Prerequisite:** R-03. **Met.**
+  - **Exact action:** Generate an RSA key pair locally without logging it; export and commit only the Base64 DER/SPKI public key as the WXT manifest `key`; derive the Chrome ID; rebuild `lettercast-1.0.0-chrome.zip`; record its distinct SHA-256 and `chrome-extension://<stable-id>` origin.
+  - **Private-key scope:** The private key is not required for the approved GitHub Release/unpacked showcase workflow. Any future signed-package or different distribution workflow must make its own key-retention decision. Only the approved public manifest key may appear in the repository, output, ZIP, logs, documentation, or GitHub Release.
+  - **Verified identity:** ID `oibdnmbbockloodlflplcjdfpnnlppnl`; exact origin `chrome-extension://oibdnmbbockloodlflplcjdfpnnlppnl`.
+  - **Evidence:** `lettercast-1.0.0-chrome.zip`; R-04 SHA-256 `2ce0db5ae36b93dd57a142f85455d1ad29fd203df265ed3901315ad28380121f`.
+  - **Verification:** Generated and extracted manifests passed validation. Programmatic DER/SPKI derivation produced the recorded ID. The same ZIP was extracted to two paths and loaded with two clean Chromium profiles; both service-worker origins reported the recorded ID. R-06, not R-04, later consumes the exact origin.
+  - **Artifact status:** This is a stable-identity rebuilt candidate, not automatically the final release. R-11 later creates the clean, tested publication artifact and authoritative release checksum.
+  - **Pass criteria:** **Met.** Public key valid and present; no private material exists; both paths produced one expected ID; ID, origin, candidate filename, and R-04 SHA-256 are recorded.
+  - **Access:** Codex can complete automated/Chromium verification; final Google Chrome acceptance remains human-controlled.
 
 ## Cloudflare Production Setup
 
-- [ ] **R-05 — Authenticate and confirm the Cloudflare account**
-  - **Prerequisite:** R-01.
-  - **Exact action:** An authorized operator runs `corepack pnpm --filter @lettercast/worker exec wrangler login` and then `corepack pnpm --filter @lettercast/worker exec wrangler whoami`.
-  - **Verification:** Confirm the expected account is selected and can create Workers, routes/domains, secrets, Cache API entries, and native rate-limit bindings.
-  - **Pass criteria:** Wrangler reports the intended account; no credential is written to Git or a transcript.
+- [x] **R-05 — Authenticate and confirm the Cloudflare account**
+  - **Prerequisite:** R-01. **Met.**
+  - **Exact action:** An authorized operator runs `corepack pnpm --filter @lettercast/worker exec wrangler login` and `corepack pnpm --filter @lettercast/worker exec wrangler whoami`.
+  - **Verification/pass:** **Met.** Wrangler authenticated by OAuth to the approved `Ahmad` account with Workers access. Read-only inventory found zero deployed Worker scripts; no credential entered Git or documentation.
   - **Access:** Human Cloudflare credentials required.
 
-- [ ] **R-06 — Add the production Worker environment**
-  - **Prerequisite:** R-02, R-04, and R-05.
-  - **Exact action:** Add `env.production` to `apps/worker/wrangler.jsonc` with the approved Worker name/route, `CAST_RATE_LIMITER` binding, unique namespace, approved limit/period, and `ALLOWED_EXTENSION_ORIGIN` equal to `chrome-extension://<item-id>`. Do not put `TMDB_API_TOKEN` in configuration.
-  - **Verification:** Run `corepack pnpm --filter @lettercast/worker exec wrangler deploy --env production --dry-run --outdir dist` and inspect its binding/route summary; rerun repository CI and security checks after committing the configuration.
-  - **Pass criteria:** The environment is explicit, uses one narrow origin, contains no secret, and the limiter key implementation remains unchanged.
-  - **Access:** Codex can edit and dry-run; human approval is required for account-specific values.
+- [x] **R-06 — Add the production Worker environment**
+  - **Prerequisite:** R-02, R-04, and R-05. **Met.**
+  - **Exact action:** Configure the approved production Worker environment, exact R-04 origin, and native rate-limit binding without embedding the TMDB secret. Keep validation isolated from production counters.
+  - **Local preparation:** Production is configured as `lettercast-api` with exact origin `chrome-extension://oibdnmbbockloodlflplcjdfpnnlppnl` and namespace `1001` at `60/60`. Validation is configured separately as `lettercast-api-rate-limit-validation` with approved namespace `1002` at `2/60`. Both retain key `get-cast:{tmdbMovieId}`.
+  - **Verification:** Run a production dry-run and repository checks; inspect routes, bindings, variables, and artifact.
+  - **Pass criteria:** **Met.** Production and validation dry-runs and repository checks pass with one exact origin, no configured secret, isolated namespaces, and the unchanged movie-ID key.
+  - **Access:** Codex can edit/dry-run after values are approved; human account approval required.
 
-- [ ] **R-07 — Store the production TMDB secret**
-  - **Prerequisite:** R-06 and a production TMDB Bearer token supplied out of band.
-  - **Exact action:** Upload the reviewed code/configuration without activating traffic using `corepack pnpm --filter @lettercast/worker exec wrangler versions upload --env production --strict`. Then run `corepack pnpm --filter @lettercast/worker exec wrangler versions secret put TMDB_API_TOKEN --env production` and enter the value only at the secure prompt. Record the resulting secret-bearing version ID; do not deploy it yet.
-  - **Verification:** Use `corepack pnpm --filter @lettercast/worker exec wrangler versions secret list --env production` and `corepack pnpm --filter @lettercast/worker exec wrangler versions list --env production`; confirm only the secret name and intended version metadata, never the value. Rescan Git and built artifacts for credentials. Cloudflare documents that [`versions secret put` creates a version without immediately deploying it](https://developers.cloudflare.com/workers/configuration/secrets/).
-  - **Pass criteria:** A reviewed, non-active production version references `TMDB_API_TOKEN`; the value is absent from files, logs, command history, ZIPs, and extension bundles.
+- [x] **R-07 — Store the production TMDB secret**
+  - **Prerequisite:** R-06 and an out-of-band production TMDB Bearer token. **Met.**
+  - **Exact action:** Use `wrangler versions secret put TMDB_API_TOKEN --env production` through its secure prompt. Never expose the value or deploy the resulting version during R-07.
+  - **Bootstrap history:** Cloudflare could not accept a non-active first version, so the owner approved one secretless initial deployment. During R-07, bootstrap version `f0506518-98d3-4c74-8c8e-4d5aad568f6a` was active with the exact Origin and namespace `1001` at `60/60`; it had no TMDB secret and returned typed `503 BACKEND_UNAVAILABLE`.
+  - **Secret-bearing version:** Version `5bd16c86-d2e4-41d3-b7e6-1adcd58db4cb` contains the `TMDB_API_TOKEN` binding by name only, the exact approved Origin, and namespace `1001` at `60/60`. R-07 verification confirmed it was non-active while the bootstrap received 100%; R-09 below records its later authorized promotion.
+  - **Verification/pass:** **Met.** Safe metadata confirms the secret binding name and approved bindings without revealing its value. Repository and artifact rescans find no credential material.
   - **Access:** Human secret and Cloudflare access required; Codex must not receive the token.
 
-- [ ] **R-08 — Verify the native binding on Cloudflare**
-  - **Prerequisite:** R-04 and R-05.
-  - **Exact action:** Deploy the existing validation environment with `corepack pnpm --filter @lettercast/worker exec wrangler deploy --env rate-limit-validation --var "ALLOWED_EXTENSION_ORIGIN:chrome-extension://<item-id>"`; do not add a TMDB token. Repeatedly request one uncached valid movie path with that Origin so missing-secret failures remain uncached and exercise the same resource key.
-  - **Verification:** Deployment output lists `CAST_RATE_LIMITER`; requests initially fail closed as backend unavailable and eventually return the typed 429 response. Do not require an exact denial count because counters are permissive and location-scoped.
-  - **Pass criteria:** The selected account accepts the binding and a denial is observed without changing the key or introducing caller identity.
-  - **Access:** Human deployment access required; Codex can provide commands and inspect sanitized evidence.
+- [x] **R-08 — Verify the native binding on Cloudflare**
+  - **Prerequisite:** R-04, R-05, R-06, and approved validation namespace `1002` at `2/60`. **Met.**
+  - **Exact action:** Deploy only `lettercast-api-rate-limit-validation` using the R-04 origin and no TMDB token; exercise one uncached movie key until coarse denial is observed.
+  - **Evidence:** Deployed only `lettercast-api-rate-limit-validation` at `https://lettercast-api-rate-limit-validation.ahmad-713.workers.dev`, version `a047199d-9278-4695-adcb-0a536aa48604`. Cloudflare reported `CAST_RATE_LIMITER` at `2/60`. With exact Origin and one uncached movie ID, 16 requests failed safely as typed `503 BACKEND_UNAVAILABLE`; the 17th returned typed `429 RATE_LIMITED`, consistent with permissive eventually consistent counters. Missing, wrong-extension, malformed, and wildcard Origins each returned `403 UNKNOWN` without an allow-origin header.
+  - **Verification/pass:** **Met.** The native binding denied the movie-ID-derived key in isolated namespace `1002` without a TMDB token or caller identity. Read-only inventory confirmed production Worker `lettercast-api` still does not exist.
+  - **Access:** Completed with human-authorized validation deployment access; no production access was exercised.
 
-- [ ] **R-09 — Deploy the production Worker**
-  - **Prerequisite:** R-06 through R-08.
-  - **Exact action:** Review the production dry-run artifact and the secret-bearing version from R-07, then deploy that exact version at 100% using `corepack pnpm --filter @lettercast/worker exec wrangler versions deploy <approved-version-id>@100% --env production`. If the approved configuration uses a route or custom domain, apply only its reviewed trigger with `corepack pnpm --filter @lettercast/worker exec wrangler triggers deploy --env production`. Record the deployment/version identifier and final HTTPS origin.
-  - **Verification:** Confirm the deployed route is the approved origin and only the expected secret, variable, and rate-limit binding are attached.
-  - **Pass criteria:** The Worker is reachable over HTTPS and no generic proxy route, extra TMDB endpoint, analytics binding, or unintended variable exists.
+- [x] **R-09 — Deploy the production Worker**
+  - **Prerequisite:** R-06 through R-08. **Met.**
+  - **Exact action:** Review and deploy the exact approved secret-bearing Worker version at 100%, applying only reviewed triggers. Record deployment/version and final HTTPS origin.
+  - **Evidence:** Deployment `9a93ff61-31c4-4899-8118-f7d7aca86ccf` routes 100% of `lettercast-api` traffic to version `5bd16c86-d2e4-41d3-b7e6-1adcd58db4cb` at `https://lettercast-api.ahmad-713.workers.dev`. Bootstrap version `f0506518-98d3-4c74-8c8e-4d5aad568f6a` remains only in deployment history and is no longer active.
+  - **Verification/pass:** **Met.** Safe version metadata shows only the expected `TMDB_API_TOKEN` secret binding name, exact extension Origin, and `CAST_RATE_LIMITER` namespace `1001` at `60/60`. No secret value was retrieved.
   - **Access:** Human Cloudflare credentials and deployment approval required.
 
-- [ ] **R-10 — Smoke-test the deployed Worker**
+- [x] **R-10 — Smoke-test the deployed Worker**
   - **Prerequisite:** R-09.
-  - **Exact action:** From a controlled client, request `GET /v1/movie/{tmdbMovieId}/cast` with the exact store-item Origin. Test one cache miss followed by a hit, a rejected Origin, wrong method/path/query, and a known not-found movie ID. Use bounded Cloudflare trace/subrequest evidence only long enough to distinguish cache, limiter, and TMDB behavior.
-  - **Verification:** Confirm the miss makes at most one Bearer-authenticated request to TMDB `/3/movie/{id}/credits`; the hit skips limiter/TMDB; rejected requests never reach TMDB; responses use only the narrow schema and typed errors.
-  - **Pass criteria:** Cache and failure behavior match architecture, no token is exposed, and diagnostics retain no detailed `(IP, tmdbId)` history beyond the test.
-  - **Access:** Human production access required; Codex can design requests and review sanitized results.
+  - **Exact action:** Test cast cache miss/hit, rejected Origin, wrong method/path/query, and not-found behavior using the exact R-04 origin.
+  - **Original failure (2026-09-09):** Confirmed movie `1124620` returned `502` with `{"error":"BACKEND_UNAVAILABLE"}`, exact allow-origin, and no wildcard from version `5bd16c86-d2e4-41d3-b7e6-1adcd58db4cb`.
+  - **Diagnosis/remediation:** Bounded, version-filtered diagnostics identified the exact `TMDB_FETCH_ERROR`: Cloudflare threw a non-timeout `TypeError` because Workers supports fetch redirect modes `follow` and `manual`, not the configured `error`. No upstream response was received. The client now uses `redirect: "manual"`; redirects therefore remain non-followed and map to bounded upstream failure without forwarding the Bearer token. Unit/integration assertions and a `302` regression case cover this behavior. Temporary diagnostics and tails were removed.
+  - **Post-fix evidence:** Movie `1124620` returned `200`, exact allow-origin, no wildcard, and 35 schema-valid plausible cast members. For independently confirmed movie `933260`, a bounded diagnostic version recorded one `R10_CACHE_MISS` and one `R10_TMDB_FETCH` on the first `200`, then only `R10_CACHE_HIT` on the immediate second `200`; both responses contained 120 schema-valid cast members and exact CORS.
+  - **Boundary evidence:** Missing, wrong-extension, malformed, and wildcard Origins each returned typed `403 UNKNOWN` without an allow-origin header. With the exact Origin, `POST` returned `405 UNKNOWN` and `Allow: GET`; a wrong path returned `404 UNKNOWN`; a query returned `400 UNKNOWN`; non-numeric, negative, zero, and unsafe-integer IDs returned `400 INVALID_ID`. TMDB's public movie page independently returned `404` for ID `999999999`, and Lettercast returned `404 INVALID_ID`. No tested response set a cookie.
+  - **Privacy/upstream evidence:** Source and tests constrain extension messaging to `{ type: "get-cast", tmdbId }`, service-worker egress to one credential-omitting GET, the Worker upstream request to `GET https://api.themoviedb.org/3/movie/{id}/credits` with only `Accept` and secret-backed `Authorization`, and the limiter key to `get-cast:{tmdbMovieId}`. No page URL/title, DOM content, body, cookie, analytics, or client/storage identity is sent or generated. Exact-Origin CORS is abuse reduction, not authentication.
+  - **Cleanup/current deployment:** The temporary cache-diagnostic tail was stopped and its source markers removed. Diagnostic version `b8033ed9-acd7-4d22-9ab4-a1806f34a2a4` is inactive. Clean version `de4aee27-891b-4022-88fe-572e2ec6b041`, deployment `b19b5c0b-261d-422a-80c8-4d063cb675f1`, receives 100% production traffic with `TMDB_API_TOKEN` visible by name only, the exact Origin, and namespace `1001` at `60/60`. No secret value was retrieved.
+  - **Verification/pass:** At most one approved TMDB credits request occurs on a miss; cache hits skip limiter/TMDB; rejected requests do not reach TMDB; schemas and errors remain narrow without token exposure or retained viewer history.
+  - **Current status:** **Met.** Production behavior, cache bypass, rejection/error contracts, privacy boundaries, diagnostic cleanup, bindings, and repository checks all passed on 2026-09-09.
+  - **Access:** Human production access required; Codex can design and review sanitized tests.
 
 ## Production Extension Verification
 
 - [ ] **R-11 — Rebuild and review the final production artifact**
-  - **Prerequisite:** R-09 and the release commit containing approved version, icons, and production configuration.
-  - **Exact action:** From a clean checkout, install with the frozen lockfile, set `WXT_LETTERCAST_API_ORIGIN` to the deployed origin, run the production build and security check, and produce the final ZIP. Record commit, version, ZIP hash, and Worker deployment identifier together.
-  - **Verification:** Inspect the emitted manifest and bundles, and compare the Worker origin with R-09.
-  - **Pass criteria:** MV3; exact match `https://letterboxd.com/film/*`; `document_idle`; exactly one production Worker host permission; no `permissions`, `cookies`, `tabs`, `storage`, broad hosts, test origin, secret, analytics, remote script, `eval`, or `new Function`.
-  - **Access:** Codex can perform this step; human signs off the artifact.
+  - **Prerequisite:** R-09 and the release commit containing approved identity, icons, and production configuration.
+  - **Exact action:** Build from a clean checkout with the exact deployed API origin and produce the final `lettercast-1.0.0-chrome.zip`. Record commit, version, stable ID, Worker deployment, and SHA-256 together.
+  - **Artifact status:** The R-11 checksum supersedes R-03/R-04 evidence checksums and is the only checksum intended for publication.
+  - **Verification/pass:** Manifest, release, security, and full repository checks pass; ZIP contains only deployable extension assets and no secrets/development material.
+  - **Access:** Codex can build/verify; human signs off.
 
-- [ ] **R-12 — Test the unpacked production build in Chrome/Chromium**
+- [ ] **R-12 — Test the final unpacked build in Chrome/Chromium**
   - **Prerequisite:** R-11.
-  - **Exact action:** Load `apps/extension/.output/chrome-mv3` through `chrome://extensions` in Developer mode. Verify installation, service-worker registration, startup/reload behavior, and console output. Do not broaden the production Worker allowlist merely because an unpacked build receives a different extension ID.
-  - **Verification:** Inspect extension errors, service-worker DevTools, content-script injection, duplicate prevention, and behavior after suspending/restarting the service worker.
-  - **Pass criteria:** The package loads without extension errors, remains cold-start safe, and an expected Origin rejection leaves Letterboxd unchanged. Successful production-origin testing is completed with the store-ID build in R-14.
-  - **Access:** Codex can assist with local testing; a human controls the browser profile.
+  - **Exact action:** Extract the exact R-11 ZIP permanently and load the directory containing `manifest.json` through `chrome://extensions`. Verify the displayed ID equals R-04 plus registration, startup/reload, and service-worker behavior. A different ID is failure; never broaden CORS.
+  - **Verification/pass:** No extension errors; stable identity and cold-start behavior hold; Origin/backend failures leave Letterboxd unchanged.
+  - **Access:** Human controls final Chrome profile; Codex can assist and automate Chromium coverage.
 
-## Chrome Web Store and Live-Site Acceptance
+## GitHub Showcase and Live-Site Acceptance
 
-- [ ] **R-13 — Complete store listing and test-channel readiness**
+- [ ] **R-13 — Prepare GitHub showcase release materials**
   - **Prerequisite:** R-04 and R-11.
-  - **Exact action:** Upload the final ZIP to the existing draft; complete its accurate single-purpose description, category/language, support contact, distribution/regions, privacy fields, permission justification, and data-use disclosures. Declare no remote code. Supply the required 128×128 icon, at least one current screenshot, and required promotional artwork. Submit first through an approved test/private/unlisted path where appropriate; all visibility modes still undergo review.
-  - **Verification:** Compare every dashboard claim with ADR 0007 and the actual manifest/network behavior. Follow the official [publication flow](https://developer.chrome.com/docs/webstore/publish/), [privacy fields](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy), [distribution settings](https://developer.chrome.com/docs/webstore/cws-dashboard-distribution/), and [image requirements](https://developer.chrome.com/docs/webstore/images).
-  - **Pass criteria:** Dashboard validation is complete; listing and privacy statements are accurate; required assets exist; support/contact information works; the test distribution is approved and installable with the recorded item ID.
-  - **Access:** Human publisher, policy, and distribution approval required; Codex can draft copy and audit consistency.
+  - **Exact action:** Prepare concise release notes and installation/update/removal instructions for the R-11 ZIP/checksum. Distinguish the built ZIP from GitHub source archives; explain Developer Mode, **Load unpacked**, manual updates, managed-browser limitations, no Store review/updates, and backend availability.
+  - **Verification/pass:** Documentation matches the tested artifact, privacy behavior, permissions, stable ID, and checksum; no tag or release exists yet.
+  - **Access:** Codex can prepare; human approves publication.
 
-- [ ] **R-14 — Smoke-test real Letterboxd movie pages with the store-ID build**
-  - **Prerequisite:** R-10 and an installable R-13 test release.
-  - **Exact action:** Install through the Chrome Web Store test channel and visit several current canonical public movie pages, including the previously sampled Dune: Part Two, The Matrix, and Parasite pages where available. Reload and revisit after service-worker suspension.
-  - **Verification:** Inspect DOM and network activity: one extension-owned block, at most ten TMDB-ordered members, native cast subtree unchanged, at most one `get-cast` operation per page view, and only the movie ID in the backend path with no body/cookies/page URL/title/DOM data.
-  - **Pass criteria:** Enhancement succeeds consistently, remains idempotent and cold-start safe, and Letterboxd functionality remains intact.
-  - **Access:** Human browser/store access required; Codex can guide inspection and review evidence.
+- [ ] **R-14 — Smoke-test real Letterboxd pages with the stable-ID build**
+  - **Prerequisite:** R-10 and the R-11 artifact documented by R-13.
+  - **Exact action:** Load the extracted R-11 artifact in a clean Chrome profile and test current canonical Dune: Part Two, The Matrix, and Parasite pages where available, including reload and service-worker suspension.
+  - **Verification/pass:** One extension-owned block, at most ten TMDB-ordered members, untouched native cast, one operation per page view, and only movie ID in the backend path.
+  - **Access:** Human browser control required; Codex can guide evidence collection.
 
 - [ ] **R-15 — Verify graceful failure on unsupported or changed pages**
   - **Prerequisite:** R-12 or R-14.
-  - **Exact action:** Test a non-film Letterboxd page, a TV/miniseries-backed film page if available, a controlled initial-HTML override with missing/conflicting identity or missing cast markup, and a blocked/unavailable Worker request.
-  - **Verification:** Inspect DOM, console, and network requests before and after reload.
-  - **Pass criteria:** Unsupported/ambiguous pages send no cast request and add no block; backend failure adds no block; no native node is modified; all pages remain usable. No observer, title/year fallback, actor matching, or TV endpoint appears.
-  - **Access:** Human browser control required; Codex can define overrides and inspect results.
+  - **Exact action:** Test non-film, TV/miniseries where available, missing/conflicting identity or cast markup, and blocked/unavailable Worker cases.
+  - **Verification/pass:** No request/block on unsupported identity; backend failure adds no block; native page remains unchanged and usable; no observer, fallback matching, or TV endpoint appears.
+  - **Access:** Human browser control required; Codex can guide controlled cases.
 
 - [ ] **R-16 — Verify TMDB images in production**
   - **Prerequisite:** R-14.
-  - **Exact action:** Inspect successful portraits, then block one TMDB CDN image request and reload. Check for CSP violations and unexpected referrer/query data.
-  - **Verification:** DevTools shows HTTPS requests only to `image.tmdb.org/t/p/w185/<validated-profile-path>`; rendered portraits stay within the 80×120 reserved area; the blocked image becomes the neutral placeholder.
-  - **Pass criteria:** Valid images load without CSP errors or layout breakage, failures degrade locally, and no Letterboxd-derived data is intentionally added to CDN requests.
-  - **Access:** Human browser control required; Codex can guide and review evidence.
+  - **Exact action:** Inspect successful `w185` portraits, then block one CDN request and reload.
+  - **Verification/pass:** Only approved HTTPS TMDB profile paths load, no CSP/layout failure occurs, and blocked images degrade to the neutral placeholder without added Letterboxd data.
+  - **Access:** Human browser control required; Codex can guide inspection.
 
 ## Final Release
 
 - [ ] **R-17 — Approve and publish v1**
-  - **Prerequisite:** R-01 through R-16 all pass and any Chrome Web Store review findings are resolved without weakening architecture.
-  - **Exact action:** Confirm the dashboard ZIP hash/version matches R-11, select the approved distribution, and publish. Tag the exact release commit using the human-approved version and record the store item ID, Worker deployment identifier, artifact hash, release date, and rollback owner.
-  - **Verification:** Install from the released listing in a clean Chrome profile and repeat one supported-page success plus one backend-failure check.
-  - **Pass criteria:** The public/intended listing serves the approved artifact, production remains healthy, records identify exactly what was released, and rollback ownership is clear.
-  - **Access:** Human final approval and publisher access required; Codex can verify records and prepare a tag but must not publish without authorization.
+  - **Prerequisite:** R-01 through R-16 pass, the owner approves public repository visibility, and the release commit is final.
+  - **Exact action:** The owner makes the repository public when ready, tags the exact commit `v1.0.0`, and creates a GitHub Release containing only the R-11 ZIP, SHA-256 file, and approved notes. Record stable ID, Worker deployment, artifact hash, date, and rollback owner.
+  - **Verification/pass:** Download the release asset rather than the source archive, verify checksum, install in clean Chrome, and repeat one success plus one backend-failure check. The earlier private state is not an R-03/R-04 blocker.
+  - **Access:** Human visibility, tagging, release, and final approval required; Codex must not publish without authorization.
 
 ## Remaining Blockers
 
-1. Human approval of the production version, branding/listing disclosures, Worker origin, distribution, and rate-limit values.
-2. Chrome Web Store publisher access and a draft item ID for the exact Worker Origin allowlist.
-3. Cloudflare authentication, production environment/binding configuration, and the TMDB secret.
-4. Account-backed rate-limit validation, production deployment, and deployed cache/network smoke evidence.
-5. Final icon/listing assets, production package review, store-ID browser tests, and live Letterboxd/CSP/image verification.
+1. Complete the final R-11 artifact and R-12 through R-16 browser/live-page/image checks.
+2. Approve making the repository public and publishing the final GitHub Release.
 
 ## Recommended Order
 
-Complete R-01 through R-17 in numeric order. The ordering deliberately obtains the Chrome Web Store item ID before locking the production Worker Origin, verifies the native binding before production deployment, and reserves successful live testing for the store-ID build.
+Complete R-01 through R-17 in order. R-03 creates disposable pre-identity evidence, R-04 establishes the stable extension origin, R-06 consumes it, and R-11 creates the only ZIP/checksum intended for publication.
 
-**Next step:** Complete R-01 — the release owner must approve the production identifiers, version, distribution, branding/privacy position, and Worker origin before Codex can safely prepare account-specific release changes.
+**Next step:** R-11 awaits separate authorization; it has not started.

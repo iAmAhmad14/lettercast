@@ -10,3 +10,14 @@ apps/worker/src/worker-configuration.d.ts
 .dev.vars
 .dev.vars.*
 !.dev.vars.example
+.env
+.env.*
+!.env.example
+!apps/extension/.env.e2e
+*.pem
+*.key
+*.p12
+*.pfx
+*.p8
+*.pk8
+*.crx

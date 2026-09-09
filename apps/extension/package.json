@@ -1,6 +1,6 @@
 {
   "name": "@lettercast/extension",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,8 @@
     "dev": "wxt",
     "postinstall": "wxt prepare",
     "test": "vitest run && node ../../scripts/verify-service-worker-boundary.mjs && node ../../scripts/verify-content-identity-boundary.mjs && node ../../scripts/verify-content-script-boundary.mjs",
-    "typecheck": "wxt prepare && tsc -p tsconfig.json --noEmit"
+    "typecheck": "wxt prepare && tsc -p tsconfig.json --noEmit",
+    "zip": "wxt zip"
   },
   "dependencies": {
     "@lettercast/contracts": "workspace:*"

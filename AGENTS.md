@@ -44,6 +44,8 @@ Validate runtime messages at the service-worker boundary. Validate Cloudflare ba
 
 Never commit credentials. Keep the TMDB secret in Cloudflare through Wrangler secrets, outside the extension bundle and repository.
 
+Release builds use the committed public manifest key to preserve one stable Chrome extension ID and exact Worker Origin allowlist. The public key is non-secret. Never commit, document, log, or package corresponding private signing material, local environment files, Cloudflare/Wrangler credentials, or TMDB tokens. GitHub Release assets must be production extension ZIPs, not source archives; generated manifests and build directories remain untracked.
+
 ## Spikes and Decisions
 
 Implementation uncertainties must be verified rather than guessed or silently assumed. Record evidence before converting a spike result into architecture.

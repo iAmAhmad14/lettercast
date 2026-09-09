@@ -72,7 +72,7 @@ function tmdbResponse(calls: string[]): ReturnType<typeof vi.fn<typeof fetch>> {
           Accept: "application/json",
           Authorization: `Bearer ${TEST_TOKEN}`,
         },
-        redirect: "error",
+        redirect: "manual",
       }),
     );
     return Response.json({

@@ -144,6 +144,8 @@ Only the TMDB movie ID is sent as Letterboxd-derived application data. Lettercas
 
 Manifest access must be limited to the supported Letterboxd page match and the Cloudflare Worker origin required by the service worker. Do not request `cookies`, `tabs`, `storage`, broad host access, or speculative permissions. Use HTTPS everywhere and the default MV3 extension CSP. Do not add remote scripts, `eval`, `new Function`, analytics, or a telemetry vendor.
 
+The v1 showcase is distributed as a GitHub Release ZIP loaded manually as an unpacked extension. A committed public manifest `key` gives production builds stable Chrome extension ID `oibdnmbbockloodlflplcjdfpnnlppnl`, allowing the Worker to retain exactly `chrome-extension://oibdnmbbockloodlflplcjdfpnnlppnl`. The public key is not a credential; corresponding private signing material must never enter Git, documentation, logs, extension output, or release artifacts. This distribution detail does not weaken the narrow permissions, exact-origin CORS, or privacy model.
+
 Origin/CORS checks are layered operational controls, not authentication; direct clients can spoof an Origin header. Production diagnostics must not retain detailed `(IP, tmdbId)` histories beyond operational necessity. Credentials never enter source control or the extension bundle.
 
 ## 10. Caching and Rate Limiting
@@ -224,8 +226,7 @@ The completed notes in [`docs/spikes/`](spikes/) are evidence records. They supp
 
 The five original spikes and the rate-limit key decision are resolved. Remaining uncertainty is implementation-, deployment-, or operational-level:
 
-1. **Cloudflare account verification - deployment-level.** The implementation environment was not authenticated, so an authorized operator must confirm that the selected account accepts the binding and production configuration.
-2. **Rate-limit thresholds - deployment-level.** Select and test an approved numeric limit using an allowed 10- or 60-second period. Committed example values validate configuration shape only.
+1. **Production deployment verification - deployment-level.** R-08 verified the native binding through isolated validation namespace `1002` at 2 requests per 60 seconds; production remains approved as namespace `1001` at 60 requests per 60 seconds. The production configuration still requires secret setup, deployment, and live smoke testing. Validation deployment is not production evidence.
 3. **Markup variability - operational risk.** Logged-in, localized, experimental, and future Letterboxd variants remain unsampled. Fixtures, graceful decline, and periodic live verification are the mitigation.
 
-No remaining uncertainty blocks local implementation or validation. The Cloudflare account, production threshold, and deployed smoke evidence remain release blockers; they do not justify weakening the architecture or expanding scope.
+No remaining uncertainty blocks local implementation or stable extension identity verification. Production secret setup, deployment, and smoke evidence remain release blockers; they do not justify weakening the architecture or expanding scope.

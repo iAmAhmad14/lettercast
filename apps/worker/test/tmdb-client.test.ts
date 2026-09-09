@@ -72,7 +72,7 @@ describe("TMDB credits client", () => {
       `Bearer ${TOKEN}`,
     );
     expect(new Headers(init?.headers).get("Accept")).toBe("application/json");
-    expect(init?.redirect).toBe("error");
+    expect(init?.redirect).toBe("manual");
     expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
 
@@ -166,6 +166,7 @@ describe("TMDB credits client", () => {
     [401, "AUTHENTICATION", "BACKEND_UNAVAILABLE", 503],
     [404, "NOT_FOUND", "INVALID_ID", 404],
     [429, "RATE_LIMITED", "RATE_LIMITED", 429],
+    [302, "UPSTREAM_UNAVAILABLE", "BACKEND_UNAVAILABLE", 502],
     [500, "UPSTREAM_UNAVAILABLE", "BACKEND_UNAVAILABLE", 502],
     [503, "UPSTREAM_UNAVAILABLE", "BACKEND_UNAVAILABLE", 502],
   ] as const)(

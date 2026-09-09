@@ -1,6 +1,6 @@
 {
   "name": "lettercast",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@12.3.4",
   "engines": {
@@ -11,6 +11,8 @@
     "build": "corepack pnpm -r --if-present build && node scripts/verify-manifest.mjs",
     "ci": "corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test && corepack pnpm build && corepack pnpm security && corepack pnpm test:e2e",
     "lint": "eslint .",
+    "release:extension": "corepack pnpm --filter @lettercast/extension zip",
+    "release:verify": "node scripts/verify-release.mjs",
     "security": "node scripts/verify-security.mjs",
     "test": "corepack pnpm -r --if-present test",
     "test:e2e": "corepack pnpm --filter @lettercast/extension build:e2e && playwright test",

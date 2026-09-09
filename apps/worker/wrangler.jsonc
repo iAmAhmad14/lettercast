@@ -4,18 +4,38 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-08",
   "env": {
-    // This environment validates the binding configuration only. Its values
-    // are Cloudflare's documented example, not approved production settings.
-    // LC-013 must approve a unique production namespace and threshold before
-    // account deployment.
-    "rate-limit-validation": {
-      "name": "lettercast-api-rate-limit-validation",
+    "production": {
+      "name": "lettercast-api",
+      "workers_dev": true,
+      "vars": {
+        "ALLOWED_EXTENSION_ORIGIN": "chrome-extension://oibdnmbbockloodlflplcjdfpnnlppnl"
+      },
       "ratelimits": [
         {
           "name": "CAST_RATE_LIMITER",
           "namespace_id": "1001",
           "simple": {
-            "limit": 100,
+            "limit": 60,
+            "period": 60
+          }
+        }
+      ]
+    },
+    // This environment validates the native binding only. Namespace 1002 and
+    // its low threshold are validation-only and isolate tests from production
+    // namespace 1001.
+    "rate-limit-validation": {
+      "name": "lettercast-api-rate-limit-validation",
+      "workers_dev": true,
+      "vars": {
+        "ALLOWED_EXTENSION_ORIGIN": "chrome-extension://oibdnmbbockloodlflplcjdfpnnlppnl"
+      },
+      "ratelimits": [
+        {
+          "name": "CAST_RATE_LIMITER",
+          "namespace_id": "1002",
+          "simple": {
+            "limit": 2,
             "period": 60
           }
         }
