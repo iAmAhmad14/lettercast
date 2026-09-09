@@ -98,11 +98,12 @@ Hosted GitHub CI has passed on `main`. The implementation plan is complete; this
 
 ## Production Extension Verification
 
-- [ ] **R-11 — Rebuild and review the final production artifact**
+- [x] **R-11 — Rebuild and review the final production artifact**
   - **Prerequisite:** R-09 and the release commit containing approved identity, icons, and production configuration.
   - **Exact action:** Build from a clean checkout with the exact deployed API origin and produce the final `lettercast-1.0.0-chrome.zip`. Record commit, version, stable ID, Worker deployment, and SHA-256 together.
   - **Artifact status:** The R-11 checksum supersedes R-03/R-04 evidence checksums and is the only checksum intended for publication.
-  - **Verification/pass:** Manifest, release, security, and full repository checks pass; ZIP contains only deployable extension assets and no secrets/development material.
+  - **Evidence:** Clean detached worktree at commit `faa3fe5789d99ec645c020b11da014ae84941279` produced `lettercast-1.0.0-chrome.zip` (37,220 bytes), SHA-256 `2ce0db5ae36b93dd57a142f85455d1ad29fd203df265ed3901315ad28380121f`. This matches the R-04 candidate digest because extension inputs did not change, but R-11 is now the authoritative publication checksum.
+  - **Verification/pass:** **Met.** Frozen install, aggregate CI, final production-origin build, manifest/security/release verification, deployable-file allowlist, and two-path clean-profile Chromium identity test passed. The root manifest contains version `1.0.0`, approved metadata, the public key-derived ID `oibdnmbbockloodlflplcjdfpnnlppnl`, and only the production Worker host permission. The ZIP contains no sources, maps, tests, secrets, private keys, or development output.
   - **Access:** Codex can build/verify; human signs off.
 
 - [ ] **R-12 — Test the final unpacked build in Chrome/Chromium**
@@ -154,4 +155,4 @@ Hosted GitHub CI has passed on `main`. The implementation plan is complete; this
 
 Complete R-01 through R-17 in order. R-03 creates disposable pre-identity evidence, R-04 establishes the stable extension origin, R-06 consumes it, and R-11 creates the only ZIP/checksum intended for publication.
 
-**Next step:** R-11 awaits separate authorization; it has not started.
+**Next step:** R-12 awaits separate authorization; it has not started.

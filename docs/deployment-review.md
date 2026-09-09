@@ -2,7 +2,7 @@
 
 ## Status
 
-**Release blocked as of 2026-09-09.** R-01 through R-10 pass; R-11 has not started. R-10 diagnosed unsupported fetch redirect mode `error`, remediated it with non-following mode `manual`, and completed production cache, boundary, privacy, and cleanup verification. Clean version `de4aee27-891b-4022-88fe-572e2ec6b041`, deployment `b19b5c0b-261d-422a-80c8-4d063cb675f1`, receives 100% of production traffic. The repository intentionally remains private until the owner approves publication.
+**Release blocked as of 2026-09-09.** R-01 through R-11 pass; R-12 has not started. R-10 diagnosed unsupported fetch redirect mode `error`, remediated it with non-following mode `manual`, and completed production cache, boundary, privacy, and cleanup verification. Clean Worker version `de4aee27-891b-4022-88fe-572e2ec6b041`, deployment `b19b5c0b-261d-422a-80c8-4d063cb675f1`, receives 100% of production traffic. R-11 rebuilt and verified the final extension artifact from release-candidate commit `faa3fe5789d99ec645c020b11da014ae84941279`. The repository intentionally remains private until the owner approves publication.
 
 ## Verified Locally
 
@@ -55,4 +55,4 @@ After release and periodically thereafter, repeat the live Letterboxd markup and
 
 Cloudflare counters remain location-scoped, asynchronously updated, permissive, and unsuitable for exact accounting. That accepted limitation was observed during R-08. R-10's original `502 BACKEND_UNAVAILABLE` was a code defect rather than a limiter, TMDB token, upstream status, JSON, or schema failure. After remediation, movie `1124620` returned `200`, exact CORS, no wildcard, and 35 schema-valid cast members. Movie `933260` proved one upstream fetch followed by a cache hit. Origin rejection, method/path/query/input errors, independently confirmed not-found behavior, no-cookie responses, and the movie-ID-only privacy boundary all matched the implementation. No persistent diagnostic logging remains and no secret value was retrieved.
 
-The release channel is a manually installed GitHub Release ZIP. R-03 pre-identity evidence is never publishable. R-04 verified ID `oibdnmbbockloodlflplcjdfpnnlppnl` and origin `chrome-extension://oibdnmbbockloodlflplcjdfpnnlppnl`; its rebuilt ZIP remains a candidate. Only the later clean R-11 ZIP and checksum are publication candidates. Repository visibility changes, tags, and releases remain owner-controlled actions.
+The release channel is a manually installed GitHub Release ZIP. R-03 pre-identity evidence is never publishable. R-04 verified ID `oibdnmbbockloodlflplcjdfpnnlppnl` and origin `chrome-extension://oibdnmbbockloodlflplcjdfpnnlppnl`; its rebuilt ZIP was only a candidate. R-11's clean `lettercast-1.0.0-chrome.zip` and SHA-256 `2ce0db5ae36b93dd57a142f85455d1ad29fd203df265ed3901315ad28380121f` are the sole publication artifact/checksum. Repository visibility changes, tags, and releases remain owner-controlled actions.
