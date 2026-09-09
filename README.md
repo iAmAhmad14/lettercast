@@ -8,7 +8,19 @@ Letterboxd's mobile experience shows cast portraits and character names directly
 
 ## Showcase
 
-To see Lettercast's results, view the before-and-after screenshots in the [`showcase/`](showcase/) folder.
+The comparisons below show Letterboxd before and after Lettercast adds cast portraits and character names. The original screenshots are also available in the [`showcase/`](showcase/) folder.
+
+### GoodFellas
+
+| Before | After |
+| --- | --- |
+| <img src="https://cdn.jsdelivr.net/gh/iAmAhmad14/lettercast@main/showcase/goodfellas-before.png" alt="GoodFellas Letterboxd cast section before Lettercast" width="420"> | <img src="https://cdn.jsdelivr.net/gh/iAmAhmad14/lettercast@main/showcase/goodfellas-after.png" alt="GoodFellas Letterboxd cast section after Lettercast" width="420"> |
+
+### The Odyssey
+
+| Before | After |
+| --- | --- |
+| <img src="https://cdn.jsdelivr.net/gh/iAmAhmad14/lettercast@main/showcase/the-odyssey-before.png" alt="The Odyssey Letterboxd cast section before Lettercast" width="420"> | <img src="https://cdn.jsdelivr.net/gh/iAmAhmad14/lettercast@main/showcase/the-odyssey-after.png" alt="The Odyssey Letterboxd cast section after Lettercast" width="420"> |
 
 ## How it works
 
