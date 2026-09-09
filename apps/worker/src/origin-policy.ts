@@ -1,5 +1,5 @@
 export type OriginDecision =
-  | { allowed: true; origin: string }
+  | { allowed: true; origin?: string }
   | { allowed: false };
 
 const CHROME_EXTENSION_ORIGIN = /^chrome-extension:\/\/[a-p]{32}$/;
@@ -9,11 +9,17 @@ export function evaluateOrigin(
   allowedExtensionOrigin: string | undefined,
 ): OriginDecision {
   if (
-    requestOrigin === null ||
     allowedExtensionOrigin === undefined ||
-    !CHROME_EXTENSION_ORIGIN.test(allowedExtensionOrigin) ||
-    requestOrigin !== allowedExtensionOrigin
+    !CHROME_EXTENSION_ORIGIN.test(allowedExtensionOrigin)
   ) {
+    return { allowed: false };
+  }
+
+  if (requestOrigin === null) {
+    return { allowed: true };
+  }
+
+  if (requestOrigin !== allowedExtensionOrigin) {
     return { allowed: false };
   }
 

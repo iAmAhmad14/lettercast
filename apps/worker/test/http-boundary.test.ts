@@ -141,21 +141,24 @@ describe("Cloudflare Worker HTTP boundary", () => {
     expect(getCast).not.toHaveBeenCalled();
   });
 
-  it("rejects a different extension origin without CORS access", async () => {
-    const { worker, getCast } = setup();
+  it.each([OTHER_ORIGIN, "https://letterboxd.com", "not an origin", "*"])(
+    "rejects supplied Origin %s without CORS access",
+    async (origin) => {
+      const { worker, getCast } = setup();
 
-    const response = await worker.fetch(
-      request("/v1/movie/603/cast", { origin: OTHER_ORIGIN }),
-      environment,
-    );
+      const response = await worker.fetch(
+        request("/v1/movie/603/cast", { origin }),
+        environment,
+      );
 
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({ error: "UNKNOWN" });
-    expect(response.headers.has("Access-Control-Allow-Origin")).toBe(false);
-    expect(getCast).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toEqual({ error: "UNKNOWN" });
+      expect(response.headers.has("Access-Control-Allow-Origin")).toBe(false);
+      expect(getCast).not.toHaveBeenCalled();
+    },
+  );
 
-  it("rejects an absent Origin without calling downstream", async () => {
+  it("accepts an absent Origin without granting CORS access", async () => {
     const { worker, getCast } = setup();
 
     const response = await worker.fetch(
@@ -163,23 +166,35 @@ describe("Cloudflare Worker HTTP boundary", () => {
       environment,
     );
 
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({ error: "UNKNOWN" });
-    expect(getCast).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(cast);
+    expect(response.headers.has("Access-Control-Allow-Origin")).toBe(false);
+    expect(response.headers.has("Vary")).toBe(false);
+    expect(getCast).toHaveBeenCalledOnce();
+    expect(getCast).toHaveBeenCalledWith(603, environment);
   });
 
-  it("fails closed when the configured extension origin is missing or invalid", async () => {
-    const { worker, getCast } = setup();
+  it.each([ALLOWED_ORIGIN, null])(
+    "fails closed for request Origin %s when the configured extension origin is missing or invalid",
+    async (origin) => {
+      const { worker, getCast } = setup();
 
-    const missing = await worker.fetch(request("/v1/movie/603/cast"), {});
-    const invalid = await worker.fetch(request("/v1/movie/603/cast"), {
-      ALLOWED_EXTENSION_ORIGIN: "https://letterboxd.com",
-    });
+      const missing = await worker.fetch(
+        request("/v1/movie/603/cast", { origin }),
+        {},
+      );
+      const invalid = await worker.fetch(
+        request("/v1/movie/603/cast", { origin }),
+        { ALLOWED_EXTENSION_ORIGIN: "https://letterboxd.com" },
+      );
 
-    expect(missing.status).toBe(403);
-    expect(invalid.status).toBe(403);
-    expect(getCast).not.toHaveBeenCalled();
-  });
+      expect(missing.status).toBe(403);
+      expect(invalid.status).toBe(403);
+      expect(missing.headers.has("Access-Control-Allow-Origin")).toBe(false);
+      expect(invalid.headers.has("Access-Control-Allow-Origin")).toBe(false);
+      expect(getCast).not.toHaveBeenCalled();
+    },
+  );
 
   it("maps an unavailable downstream dependency to a bounded error", async () => {
     const getCast = vi.fn<WorkerDependencies["getCast"]>(() =>

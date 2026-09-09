@@ -17,6 +17,7 @@ This document distinguishes locked architectural decisions from verified impleme
 - Use the Workers Cache API for backend caching. Do not use client-side storage in v1.
 - Use Cloudflare's native Workers Rate Limiting binding for coarse abuse mitigation with the resource-scoped key `get-cast:{tmdbMovieId}`. Do not use IP or client identity. See ADR 0008.
 - Load validated profile images directly from TMDB's CDN. This is a browser-managed subresource path, not a second application/API operation. See ADR 0009.
+- Treat the single cast endpoint as an unauthenticated public API. Accept absent Origin, reject every incorrect supplied Origin, and never emit wildcard CORS. See ADR 0010.
 - Keep permissions and data collection narrow. Do not add analytics, remote scripts, `eval`, `new Function`, or speculative permissions.
 
 ## 2. Runtime Boundaries
@@ -36,7 +37,7 @@ The boundaries are deliberate trust boundaries. Letterboxd DOM, callers of the p
 3. It checks its own idempotency marker. If already enhanced, it stops.
 4. It sends `{ type: "get-cast", tmdbId }` to the service worker.
 5. The service worker validates the message and requests `GET /v1/movie/{tmdbId}/cast` from the Cloudflare Worker.
-6. The Cloudflare Worker validates the method, path ID, and operational Origin/CORS policy, then checks `caches.default`.
+6. The Cloudflare Worker validates the method and path ID. It accepts absent Origin for the verified MV3 request path, applies the exact CORS response only when the approved extension Origin is supplied, rejects other supplied Origins, and then checks `caches.default`.
 7. On a cache miss, the Worker applies the native rate limiter with `get-cast:{tmdbMovieId}` and calls TMDB `GET /movie/{id}/credits` with its Bearer secret. Numeric thresholds remain deployment configuration.
 8. The Worker validates the TMDB payload, normalizes the fields Lettercast uses, caches an eligible result, and returns the narrow JSON contract.
 9. The service worker validates the backend response and returns a typed success or failure to the content script.
@@ -62,6 +63,8 @@ The current tracking value is uppercase `TMDB`, not the proposal's earlier `TMDb
 The initial implementation therefore uses `document_idle` with no `MutationObserver`. If required markup is absent, it declines gracefully. A document-wide or permanent observer is prohibited. A bounded, narrowly scoped observer may be considered only if later evidence establishes asynchronous markup; it must not be added speculatively.
 
 The outbound `/movie/{id}/` link is the primary identity signal. `body[data-tmdb-id]` and `body[data-tmdb-type="movie"]` corroborate it. The content script must decline before sending a message if the signals are absent, disagree, are invalid, or indicate a non-movie. Markup fixtures and periodic live checks must protect against drift. Logged-in, localized, experimental, and user-scoped variants were not verified by the spike.
+
+R-15 verified that the current Task (2025) miniseries page exposes an empty movie ID and an outbound TMDB `/tv/228305/` link while retaining native cast markup. The production artifact correctly declined without a backend request or DOM change. This is implementation evidence for the existing movie-only boundary, not TV support or a reason to add fallback matching.
 
 ## 5. Rendering Model
 
@@ -144,9 +147,11 @@ Only the TMDB movie ID is sent as Letterboxd-derived application data. Lettercas
 
 Manifest access must be limited to the supported Letterboxd page match and the Cloudflare Worker origin required by the service worker. Do not request `cookies`, `tabs`, `storage`, broad host access, or speculative permissions. Use HTTPS everywhere and the default MV3 extension CSP. Do not add remote scripts, `eval`, `new Function`, analytics, or a telemetry vendor.
 
-The v1 showcase is distributed as a GitHub Release ZIP loaded manually as an unpacked extension. A committed public manifest `key` gives production builds stable Chrome extension ID `oibdnmbbockloodlflplcjdfpnnlppnl`, allowing the Worker to retain exactly `chrome-extension://oibdnmbbockloodlflplcjdfpnnlppnl`. The public key is not a credential; corresponding private signing material must never enter Git, documentation, logs, extension output, or release artifacts. This distribution detail does not weaken the narrow permissions, exact-origin CORS, or privacy model.
+The v1 showcase is distributed as a GitHub Release ZIP loaded manually as an unpacked extension. A committed public manifest `key` gives production builds stable Chrome extension ID `oibdnmbbockloodlflplcjdfpnnlppnl`. The public key is not a credential; corresponding private signing material must never enter Git, documentation, logs, extension output, or release artifacts.
 
-Origin/CORS checks are layered operational controls, not authentication; direct clients can spoof an Origin header. Production diagnostics must not retain detailed `(IP, tmdbId)` histories beyond operational necessity. Credentials never enter source control or the extension bundle.
+The [extension-Origin spike](spikes/2026-09-09-extension-origin-admission-control.md) verified that the R-11 MV3 service-worker fetch omitted `Origin`. The endpoint is therefore deliberately unauthenticated and public. An absent Origin is accepted. If Origin is present, only `chrome-extension://oibdnmbbockloodlflplcjdfpnnlppnl` is accepted and echoed; every other value is rejected without an allow-origin header. Wildcard CORS is prohibited. CORS is browser-side abuse reduction, not authentication, and direct clients can omit or spoof Origin.
+
+No custom extension-ID header, embedded client credential, user identity, or persistent client state may be added. Production diagnostics must not retain detailed `(IP, tmdbId)` histories beyond operational necessity. Credentials never enter source control or the extension bundle.
 
 ## 10. Caching and Rate Limiting
 
@@ -203,7 +208,7 @@ Tests must follow the runtime boundaries:
 - Pure tests cover ID parsing, boundary schemas, normalization, error mapping, cache keys, ordering, and any chosen cast cap.
 - DOM fixture tests cover the verified `body` attributes, uppercase `TMDB` link, initial cast container, graceful selector failure, idempotency, partial data, and safe rendering.
 - Service-worker tests cover cold-start-safe message handling, request validation, backend validation, and error translation.
-- Cloudflare runtime tests cover request checks, TMDB validation, Cache API behavior, secrets, and the selected rate-limit configuration.
+- Cloudflare runtime tests cover absent-Origin admission, incorrect supplied-Origin rejection, exact CORS behavior, request checks, TMDB validation, Cache API behavior, secrets, and the selected rate-limit configuration.
 - A small browser smoke test covers extension loading, real runtime messaging, rendering, image fallback, and service-worker wake behavior against local fixtures.
 
 Vitest runs deterministic contract, DOM, service-worker, Cloudflare runtime, and cross-boundary integration tests. Playwright runs a limited packaged-extension smoke suite against local fixtures with all external requests intercepted. Root lint, type-check, test, build, security, and browser checks are composed by `corepack pnpm run ci` and require no production credential.
@@ -218,15 +223,14 @@ V1 excludes TV/miniseries support, actor matching, fuzzy search, lists, reviews,
 
 ## 15. Decision and Evidence Records
 
-The accepted ADRs in [`docs/decisions/`](decisions/) protect the architecture's major decisions. ADR 0008 replaces ADR 0006's IP-based rate-limit key with `get-cast:{tmdbMovieId}`; ADR 0006's cache, no-client-storage, and native-binding decisions remain accepted. ADR 0009 clarifies that direct profile-image subresources do not weaken the service worker's exclusive ownership of application/API egress or permit additional Letterboxd-derived data collection.
+The accepted ADRs in [`docs/decisions/`](decisions/) protect the architecture's major decisions. ADR 0008 replaces ADR 0006's IP-based rate-limit key with `get-cast:{tmdbMovieId}`; ADR 0006's cache, no-client-storage, and native-binding decisions remain accepted. ADR 0009 clarifies that direct profile-image subresources do not weaken the service worker's exclusive ownership of application/API egress or permit additional Letterboxd-derived data collection. ADR 0010 supersedes exact-Origin admission and treats the narrow cast endpoint as unauthenticated and public.
 
 The completed notes in [`docs/spikes/`](spikes/) are evidence records. They support current implementation details but do not make Letterboxd markup or operational headers stable public contracts.
 
 ## 16. Remaining Questions
 
-The five original spikes and the rate-limit key decision are resolved. Remaining uncertainty is implementation-, deployment-, or operational-level:
+The original spikes, rate-limit key, and extension admission model are resolved. ADR 0010 is deployed in production and its absent-, exact-, incorrect-, malformed-, and wildcard-Origin behavior is verified. Remaining uncertainty is operational:
 
-1. **Production deployment verification - deployment-level.** R-08 verified the native binding through isolated validation namespace `1002` at 2 requests per 60 seconds; production remains approved as namespace `1001` at 60 requests per 60 seconds. The production configuration still requires secret setup, deployment, and live smoke testing. Validation deployment is not production evidence.
-3. **Markup variability - operational risk.** Logged-in, localized, experimental, and future Letterboxd variants remain unsampled. Fixtures, graceful decline, and periodic live verification are the mitigation.
+1. **Markup variability — operational risk.** Logged-in, localized, experimental, and future Letterboxd variants remain unsampled. Fixtures, graceful decline, and periodic live verification are the mitigation.
 
-No remaining uncertainty blocks local implementation or stable extension identity verification. Production secret setup, deployment, and smoke evidence remain release blockers; they do not justify weakening the architecture or expanding scope.
+No architectural question remains open. R-14 live browser acceptance passed after the ADR 0010 rollout. Remaining graceful-failure and image acceptance work does not justify adding identity, storage, broader permissions, another endpoint, or wildcard CORS.

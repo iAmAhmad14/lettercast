@@ -172,10 +172,14 @@ const responses = await readFile(
   "utf8",
 );
 if (
+  !originPolicy.includes("requestOrigin === null") ||
+  !originPolicy.includes("return { allowed: true }") ||
   !originPolicy.includes("requestOrigin !== allowedExtensionOrigin") ||
   /Access-Control-Allow-Origin["'`,\s:]*(?:["'`])?\*/iu.test(responses)
 ) {
-  throw new Error("Worker must retain exact-origin CORS without a wildcard.");
+  throw new Error(
+    "Worker must allow absent Origin, reject incorrect supplied Origin, and retain exact CORS without a wildcard.",
+  );
 }
 
 process.stdout.write(

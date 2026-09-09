@@ -8,7 +8,7 @@ Hosted GitHub CI has passed on `main`. The implementation plan is complete; this
   - **Prerequisite:** A designated release owner. **Met.**
   - **Approved identity:** Version `1.0.0`; display name `Lettercast`; description `Enhances Letterboxd film pages with TMDB cast photos and character names.`; support email `support.lettercast@gmail.com`.
   - **Approved distribution:** A production ZIP attached to a GitHub Release and installed manually through Chrome Developer Mode using **Load unpacked**. The repository remains private during verification and will be made public only by the owner when ready. No Lettercast-imposed regional restriction applies.
-  - **Approved Cloudflare inputs:** Account `Ahmad`; account ID `713abfeb39c6d0582c58ad8fc1fa4edf`; Worker `lettercast-api`; origin `https://lettercast-api.ahmad-713.workers.dev`.
+  - **Approved Cloudflare inputs:** Account `Ahmad`; Worker `lettercast-api`; origin `https://lettercast-api.ahmad-713.workers.dev`.
   - **Verified R-04 values:** Stable Chrome extension ID `oibdnmbbockloodlflplcjdfpnnlppnl`; allowed extension origin `chrome-extension://oibdnmbbockloodlflplcjdfpnnlppnl`.
   - **Privacy:** Only the TMDB movie ID leaves the browser. Lettercast collects no personal data, analytics, cookies, browsing history, client IDs, fingerprints, or user accounts.
   - **Security:** Never record TMDB tokens, Cloudflare API tokens, passwords, Wrangler credentials, private signing keys, or other secrets in documentation or source control.
@@ -116,28 +116,35 @@ Hosted GitHub CI has passed on `main`. The implementation plan is complete; this
 
 ## GitHub Showcase and Live-Site Acceptance
 
-- [ ] **R-13 — Prepare GitHub showcase release materials**
+- [x] **R-13 — Prepare GitHub showcase release materials**
   - **Prerequisite:** R-04 and R-11.
   - **Exact action:** Prepare concise release notes and installation/update/removal instructions for the R-11 ZIP/checksum. Distinguish the built ZIP from GitHub source archives; explain Developer Mode, **Load unpacked**, manual updates, managed-browser limitations, no Store review/updates, and backend availability.
-  - **Verification/pass:** Documentation matches the tested artifact, privacy behavior, permissions, stable ID, and checksum; no tag or release exists yet.
+  - **Evidence:** `docs/release-notes-v1.0.0.md` contains publication-ready notes for the R-11 ZIP and checksum. `README.md` remains the user-facing installation authority and includes the exact R-11 digest, a PowerShell verification example, before/after screenshots, a plain-language usage guide, browser acceptance results, and an architecture diagram.
+  - **Verification/pass:** **Met.** Documentation identifies the built ZIP rather than GitHub source archives; covers Developer Mode, **Load unpacked**, manual updates, removal, managed-browser limitations, no Store review/updates, backend availability, privacy, stable ID, and the authoritative checksum. No tag or release was created, and repository visibility was unchanged.
   - **Access:** Codex can prepare; human approves publication.
 
-- [ ] **R-14 — Smoke-test real Letterboxd pages with the stable-ID build**
+- [x] **R-14 — Smoke-test real Letterboxd pages with the stable-ID build**
   - **Prerequisite:** R-10 and the R-11 artifact documented by R-13.
   - **Exact action:** Load the extracted R-11 artifact in a clean Chrome profile and test current canonical Dune: Part Two, The Matrix, and Parasite pages where available, including reload and service-worker suspension.
   - **Verification/pass:** One extension-owned block, at most ten TMDB-ordered members, untouched native cast, one operation per page view, and only movie ID in the backend path.
+  - **Blocked evidence (2026-09-09):** An isolated Chromium profile loaded the exact R-11 extraction with stable ID `oibdnmbbockloodlflplcjdfpnnlppnl`. Dune: Part Two returned current supported markup (`data-tmdb-type="movie"`, TMDB ID `693134`, one matching TMDB link, one cast panel, and 99 native cast links). The extension made exactly one credential-omitting `GET /v1/movie/693134/cast` with no body or cookie, but Chromium supplied no `Origin` header. Production therefore returned typed `403 UNKNOWN` with no allow-origin header and Lettercast correctly left the native page unchanged. A direct diagnostic request with the approved Origin returned `200`, isolating the failure to the real extension request's absent Origin rather than page markup or backend data.
+  - **Architecture resolution:** ADR 0010 accepts the narrow cast route as an unauthenticated public endpoint. Missing Origin will be allowed; any incorrect supplied Origin will remain rejected; exact allow-origin responses remain limited to the approved supplied Origin; wildcard CORS remains prohibited. No client identity or embedded secret is added.
+  - **ADR 0010 rollout:** Production version `fd0cd7c3-dd6f-4cf4-bf85-7d6012f4a35c`, deployment `1083f8a8-5d16-41ea-88e2-c65fd656cdf0`, now receives 100% traffic. Movie `1124620` returned `200` with 35 cast members when Origin was absent and emitted no CORS header. The approved supplied Origin returned `200` with the exact allow-origin value; wrong-extension, malformed, and wildcard Origins each returned typed `403 UNKNOWN` without an allow-origin header. Safe metadata retained `TMDB_API_TOKEN` by name only and `CAST_RATE_LIMITER` at `60/60`; no secret value was retrieved.
+  - **Final evidence:** **Met.** The exact R-11 extraction loaded in a fresh isolated Chromium profile with stable ID `oibdnmbbockloodlflplcjdfpnnlppnl`. Dune: Part Two (`693134`), The Matrix (`603`), and Parasite (`496243`) each rendered exactly one extension-owned block with ten TMDB-ordered members directly after the native cast panel. Native cast counts remained unchanged at 99, 38, and 55 across reloads, and the Lettercast marker never appeared inside a native panel. Every initial load and reload made exactly one credential-omitting `GET /v1/movie/{id}/cast`, with no body, cookie, or Origin, and received `200`. All portrait URLs used the approved TMDB `w185` path. After 35 seconds idle, Parasite reloaded successfully with one request and one block, verifying service-worker wake behavior. The disposable browser profile and temporary harness were removed.
   - **Access:** Human browser control required; Codex can guide evidence collection.
 
-- [ ] **R-15 — Verify graceful failure on unsupported or changed pages**
+- [x] **R-15 — Verify graceful failure on unsupported or changed pages**
   - **Prerequisite:** R-12 or R-14.
   - **Exact action:** Test non-film, TV/miniseries where available, missing/conflicting identity or cast markup, and blocked/unavailable Worker cases.
   - **Verification/pass:** No request/block on unsupported identity; backend failure adds no block; native page remains unchanged and usable; no observer, fallback matching, or TV endpoint appears.
+  - **Evidence:** **Met.** The exact R-11 artifact in a fresh isolated Chromium profile made no backend request and rendered no block on the live non-film index or Task (2025), whose current page had a native cast panel, empty movie ID, and TMDB `/tv/228305/` link. Controlled Letterboxd-origin pages with missing identity, conflicting movie IDs, or missing cast markup also made no request and rendered no block; existing native content remained present where supplied. On live Dune: Part Two, one deliberately aborted Worker request and a reload returning typed `503 BACKEND_UNAVAILABLE` each produced no Lettercast block, retained all 99 native cast links, and left the page usable. Both attempted backend requests remained credential-omitting movie-ID-only GETs with no body, cookie, or Origin. Existing tests and boundary checks confirm no observer, fallback matching, or TV endpoint. The disposable profile and temporary harness were removed.
   - **Access:** Human browser control required; Codex can guide controlled cases.
 
-- [ ] **R-16 — Verify TMDB images in production**
+- [x] **R-16 — Verify TMDB images in production**
   - **Prerequisite:** R-14.
   - **Exact action:** Inspect successful `w185` portraits, then block one CDN request and reload.
   - **Verification/pass:** Only approved HTTPS TMDB profile paths load, no CSP/layout failure occurs, and blocked images degrade to the neutral placeholder without added Letterboxd data.
+  - **Evidence:** **Met.** The exact R-11 artifact loaded live Dune: Part Two (`693134`) in two fresh isolated Chromium profiles with stable ID `oibdnmbbockloodlflplcjdfpnnlppnl`. The normal run made ten credential-free image GETs solely to `https://image.tmdb.org/t/p/w185/`; all returned `200`, decoded at 185 pixels wide, and rendered in reserved `80 × 120` frames. A second run deliberately aborted only the first portrait request. The failed image element was removed and exactly one neutral, accessible monogram placeholder appeared for that card while the other nine portraits loaded normally. Both runs retained one ten-card extension block directly after the native cast panel, preserved all 99 native cast links, emitted no CSP violation, and sent no request body or cookie to the image CDN. The disposable profiles and temporary harness were removed.
   - **Access:** Human browser control required; Codex can guide inspection.
 
 ## Final Release
@@ -145,16 +152,17 @@ Hosted GitHub CI has passed on `main`. The implementation plan is complete; this
 - [ ] **R-17 — Approve and publish v1**
   - **Prerequisite:** R-01 through R-16 pass, the owner approves public repository visibility, and the release commit is final.
   - **Exact action:** The owner makes the repository public when ready, tags the exact commit `v1.0.0`, and creates a GitHub Release containing only the R-11 ZIP, SHA-256 file, and approved notes. Record stable ID, Worker deployment, artifact hash, date, and rollback owner.
+  - **Pre-publication acceptance:** **Met.** On 2026-09-09, the owner manually completed the documented Chrome acceptance checks against the exact R-11 artifact. Stable identity, supported-page rendering, reload/service-worker wake behavior, request privacy, graceful backend and image failure, unsupported-page behavior, and absence of persistent browser errors all passed.
   - **Verification/pass:** Download the release asset rather than the source archive, verify checksum, install in clean Chrome, and repeat one success plus one backend-failure check. The earlier private state is not an R-03/R-04 blocker.
   - **Access:** Human visibility, tagging, release, and final approval required; Codex must not publish without authorization.
 
 ## Remaining Blockers
 
-1. Complete the final R-11 artifact and R-12 through R-16 browser/live-page/image checks.
+1. Review the completed README showcase and approve the detailed final release commit.
 2. Approve making the repository public and publishing the final GitHub Release.
 
 ## Recommended Order
 
 Complete R-01 through R-17 in order. R-03 creates disposable pre-identity evidence, R-04 establishes the stable extension origin, R-06 consumes it, and R-11 creates the only ZIP/checksum intended for publication.
 
-**Next step:** R-13 awaits separate authorization; it has not started.
+**Next step:** Add the owner-provided showcase screenshots, finalize the release commit, then obtain explicit owner approval for visibility, tagging, and publication. R-17 remains incomplete.

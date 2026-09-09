@@ -22,7 +22,7 @@ function jsonResponse(
   return Response.json(body, { status, headers });
 }
 
-export function castResponse(body: CastResponse, origin: string): Response {
+export function castResponse(body: CastResponse, origin?: string): Response {
   return jsonResponse(body, 200, origin);
 }
 
