@@ -47,7 +47,7 @@ There is no account, settings page, or API key for users to configure. Unsupport
 
 ## Showcase installation
 
-Once v1 is published:
+To install v1.0.0:
 
 1. Download `lettercast-1.0.0-chrome.zip` from [GitHub Releases](../../releases). Do not download GitHub's automatic **Source code** archive.
 2. Optionally verify that the ZIP's SHA-256 is `2ce0db5ae36b93dd57a142f85455d1ad29fd203df265ed3901315ad28380121f`. On PowerShell, run `Get-FileHash .\lettercast-1.0.0-chrome.zip -Algorithm SHA256`.
@@ -120,7 +120,7 @@ Unsupported Letterboxd pages remain unchanged and do not trigger Lettercast back
 
 ## Project status
 
-The v1 implementation, automated checks, and manual browser acceptance are complete. Production release work is tracked in the [release checklist](docs/release-checklist.md), and publication-ready copy is in the [v1.0.0 release notes](docs/release-notes-v1.0.0.md). The repository remains private until the owner approves publication.
+Lettercast v1.0.0 is available from the [GitHub Release](../../releases/tag/v1.0.0). The implementation, automated checks, release checksum verification, and manual browser acceptance are complete. Detailed release evidence is recorded in the [release checklist](docs/release-checklist.md), and the published notes are retained in [v1.0.0 release notes](docs/release-notes-v1.0.0.md).
 
 ## Repository layout
 

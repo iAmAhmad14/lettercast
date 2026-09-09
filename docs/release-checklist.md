@@ -7,7 +7,7 @@ Hosted GitHub CI has passed on `main`. The implementation plan is complete; this
 - [x] **R-01 — Approve release inputs**
   - **Prerequisite:** A designated release owner. **Met.**
   - **Approved identity:** Version `1.0.0`; display name `Lettercast`; description `Enhances Letterboxd film pages with TMDB cast photos and character names.`; support email `support.lettercast@gmail.com`.
-  - **Approved distribution:** A production ZIP attached to a GitHub Release and installed manually through Chrome Developer Mode using **Load unpacked**. The repository remains private during verification and will be made public only by the owner when ready. No Lettercast-imposed regional restriction applies.
+  - **Approved distribution:** A production ZIP attached to a public GitHub Release and installed manually through Chrome Developer Mode using **Load unpacked**. The owner made the repository public for v1.0.0. No Lettercast-imposed regional restriction applies.
   - **Approved Cloudflare inputs:** Account `Ahmad`; Worker `lettercast-api`; origin `https://lettercast-api.ahmad-713.workers.dev`.
   - **Verified R-04 values:** Stable Chrome extension ID `oibdnmbbockloodlflplcjdfpnnlppnl`; allowed extension origin `chrome-extension://oibdnmbbockloodlflplcjdfpnnlppnl`.
   - **Privacy:** Only the TMDB movie ID leaves the browser. Lettercast collects no personal data, analytics, cookies, browsing history, client IDs, fingerprints, or user accounts.
@@ -149,20 +149,19 @@ Hosted GitHub CI has passed on `main`. The implementation plan is complete; this
 
 ## Final Release
 
-- [ ] **R-17 — Approve and publish v1**
-  - **Prerequisite:** R-01 through R-16 pass, the owner approves public repository visibility, and the release commit is final.
-  - **Exact action:** The owner makes the repository public when ready, tags the exact commit `v1.0.0`, and creates a GitHub Release containing only the R-11 ZIP, SHA-256 file, and approved notes. Record stable ID, Worker deployment, artifact hash, date, and rollback owner.
+- [x] **R-17 — Approve and publish v1**
+  - **Prerequisite:** R-01 through R-16 pass, the owner approves public repository visibility, and the release commit is final. **Met.**
+  - **Exact action:** **Completed 2026-09-09.** The owner made the repository public, tagged commit `90dcafa` as `v1.0.0`, and published [Lettercast v1.0.0](https://github.com/iAmAhmad14/lettercast/releases/tag/v1.0.0) with only the R-11 ZIP, SHA-256 file, and approved notes. Stable ID `oibdnmbbockloodlflplcjdfpnnlppnl`, production deployment `1083f8a8-5d16-41ea-88e2-c65fd656cdf0`, and artifact hash `2ce0db5ae36b93dd57a142f85455d1ad29fd203df265ed3901315ad28380121f` remain authoritative. The repository owner is the rollback owner.
   - **Pre-publication acceptance:** **Met.** On 2026-09-09, the owner manually completed the documented Chrome acceptance checks against the exact R-11 artifact. Stable identity, supported-page rendering, reload/service-worker wake behavior, request privacy, graceful backend and image failure, unsupported-page behavior, and absence of persistent browser errors all passed.
-  - **Verification/pass:** Download the release asset rather than the source archive, verify checksum, install in clean Chrome, and repeat one success plus one backend-failure check. The earlier private state is not an R-03/R-04 blocker.
-  - **Access:** Human visibility, tagging, release, and final approval required; Codex must not publish without authorization.
+  - **Verification/pass:** **Met.** The published ZIP was downloaded directly from the release, not from GitHub's source archives. Its SHA-256 matched both the published checksum and R-11 evidence. The owner confirmed the downloaded extension works; the earlier complete acceptance suite already proved graceful backend failure for the identical artifact.
+  - **Access:** Completed by the owner with read-only release/checksum verification assisted by Codex.
 
 ## Remaining Blockers
 
-1. Review the completed README showcase and approve the detailed final release commit.
-2. Approve making the repository public and publishing the final GitHub Release.
+None for v1.0.0 publication.
 
 ## Recommended Order
 
 Complete R-01 through R-17 in order. R-03 creates disposable pre-identity evidence, R-04 establishes the stable extension origin, R-06 consumes it, and R-11 creates the only ZIP/checksum intended for publication.
 
-**Next step:** Add the owner-provided showcase screenshots, finalize the release commit, then obtain explicit owner approval for visibility, tagging, and publication. R-17 remains incomplete.
+**Status:** Lettercast v1.0.0 is published and R-17 is complete. Future work is maintenance or separately approved post-v1 scope.
