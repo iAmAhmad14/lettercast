@@ -30,6 +30,11 @@ jobs:
       - name: Install dependencies from lockfile
         run: corepack pnpm install --frozen-lockfile
 
+      - name: Disable unrelated Google Chrome APT source
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.sources
+
       - name: Install Chromium and system dependencies
         run: corepack pnpm exec playwright install --with-deps chromium
 
