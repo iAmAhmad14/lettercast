@@ -6,6 +6,8 @@ Lettercast is a Chrome-first Manifest V3 extension that adds cast photos and cha
 
 Letterboxd's mobile experience shows cast portraits and character names directly. On the desktop website, cast portraits are absent and a character name is normally revealed only by hovering over an actor's name. Lettercast makes that information visible at a glance by adding a separate **Cast portraits** section beneath the native cast list.
 
+Before-and-after screenshots for GoodFellas and The Odyssey are available in the repository at `docs/assets/`.
+
 ## How it works
 
 ```mermaid
