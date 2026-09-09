@@ -79,6 +79,28 @@ This means installed copies share the same backend and ultimately the maintainer
 
 The maintainer-hosted backend is a temporary demonstration service rather than a permanent hosted offering. A future Lettercast release is expected to provide a self-hosted workflow in which each operator supplies their own Cloudflare account and TMDB token. The transition will be documented before the shared backend is retired. After retirement, v1.0.0 will continue to leave Letterboxd pages unchanged but will no longer add cast data; users will need to migrate to the self-hosted release to retain the enhancement.
 
+## Common questions
+
+### What happens if I visit 50–70 films while building a Letterboxd list?
+
+Lettercast makes one cast request for each supported movie page you open. Each movie has its own rate-limit key, so v1.0.0 does not block a user after 60 total films; the `60/60` limit applies separately to repeated requests for the same TMDB movie ID. Cached films return without another TMDB credits request, while uncached films may each require one. If the backend or TMDB cannot serve a request, Lettercast simply omits its cast block and leaves the page and your list-building workflow unchanged.
+
+### What happens when several people open the same film?
+
+Cast data is shared through the Worker cache rather than stored per user. A successful result is cached for 24 hours, so later requests served from that cache do not make another TMDB credits request. Cloudflare caching is distributed, so a request from another location can still produce a separate cache miss.
+
+### Does Lettercast read or change my Letterboxd lists or account?
+
+No. Lettercast does not request account, cookie, tab, or storage access. It reads the TMDB movie ID already present on a supported film page, renders a separate cast section, and does not add, remove, or edit films in a list.
+
+### What happens if the Lettercast backend is unavailable or retired?
+
+The extension fails quietly: Letterboxd's native page remains available and no Lettercast cast section is added. When a temporary outage ends, normal behavior resumes on the next page load. After the shared v1.0.0 backend is permanently retired, users will need to move to the planned self-hosted release.
+
+### What happens on unsupported pages or when a portrait is missing?
+
+Unsupported pages are ignored and do not trigger a Lettercast backend request. On a supported film, a missing or failed TMDB portrait becomes a neutral letter placeholder while the actor name, character name, and native Letterboxd content remain visible.
+
 ## Browser testing
 
 Lettercast was manually tested in Chrome for failure handling, compatibility, and extension stability.
