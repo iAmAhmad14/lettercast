@@ -2,7 +2,7 @@
 
 ## Status
 
-**Release blocked as of 2026-09-09.** R-01 through R-11 pass; R-12 has not started. R-10 diagnosed unsupported fetch redirect mode `error`, remediated it with non-following mode `manual`, and completed production cache, boundary, privacy, and cleanup verification. Clean Worker version `de4aee27-891b-4022-88fe-572e2ec6b041`, deployment `b19b5c0b-261d-422a-80c8-4d063cb675f1`, receives 100% of production traffic. R-11 rebuilt and verified the final extension artifact from release-candidate commit `faa3fe5789d99ec645c020b11da014ae84941279`. The repository intentionally remains private until the owner approves publication.
+**Release blocked as of 2026-09-09.** R-01 through R-12 pass; R-13 has not started. R-12 automated acceptance passed for the exact R-11 artifact in two clean Chromium profiles, and the owner confirmed the expected ID with no extension errors in Google Chrome. Chrome's idle MV3 service-worker state was expected and covered by cold-start verification. Clean Worker version `de4aee27-891b-4022-88fe-572e2ec6b041`, deployment `b19b5c0b-261d-422a-80c8-4d063cb675f1`, receives 100% of production traffic. R-11 rebuilt and verified the final extension artifact from release-candidate commit `faa3fe5789d99ec645c020b11da014ae84941279`. The repository intentionally remains private until the owner approves publication.
 
 ## Verified Locally
 

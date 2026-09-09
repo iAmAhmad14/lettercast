@@ -106,10 +106,12 @@ Hosted GitHub CI has passed on `main`. The implementation plan is complete; this
   - **Verification/pass:** **Met.** Frozen install, aggregate CI, final production-origin build, manifest/security/release verification, deployable-file allowlist, and two-path clean-profile Chromium identity test passed. The root manifest contains version `1.0.0`, approved metadata, the public key-derived ID `oibdnmbbockloodlflplcjdfpnnlppnl`, and only the production Worker host permission. The ZIP contains no sources, maps, tests, secrets, private keys, or development output.
   - **Access:** Codex can build/verify; human signs off.
 
-- [ ] **R-12 — Test the final unpacked build in Chrome/Chromium**
+- [x] **R-12 — Test the final unpacked build in Chrome/Chromium**
   - **Prerequisite:** R-11.
   - **Exact action:** Extract the exact R-11 ZIP permanently and load the directory containing `manifest.json` through `chrome://extensions`. Verify the displayed ID equals R-04 plus registration, startup/reload, and service-worker behavior. A different ID is failure; never broaden CORS.
+  - **Automated evidence:** The authoritative R-11 checksum was reverified before extraction to `apps/extension/.output/r12-unpacked-lettercast-1.0.0`. The ZIP has `manifest.json` at its root. Two isolated clean Chromium profiles loaded that exact directory, registered the service worker, and reported ID `oibdnmbbockloodlflplcjdfpnnlppnl`, version `1.0.0`, and name `Lettercast`. A page reload and a second cold-start profile passed. A deliberately aborted production-backend request remained a credential-omitting GET with no body or cookie; before and after reload, no Lettercast block appeared and the native cast remained unchanged. Temporary profiles and the one-off harness were removed.
   - **Verification/pass:** No extension errors; stable identity and cold-start behavior hold; Origin/backend failures leave Letterboxd unchanged.
+  - **Manual evidence/status:** **Met.** The owner loaded the extracted directory in Google Chrome, enabled Lettercast, confirmed ID `oibdnmbbockloodlflplcjdfpnnlppnl`, and observed no extension errors. Chrome displayed the MV3 service worker as inactive after idle, which is expected; automated cold-start verification confirmed it starts when needed. The default Edge profile was not used or modified.
   - **Access:** Human controls final Chrome profile; Codex can assist and automate Chromium coverage.
 
 ## GitHub Showcase and Live-Site Acceptance
@@ -155,4 +157,4 @@ Hosted GitHub CI has passed on `main`. The implementation plan is complete; this
 
 Complete R-01 through R-17 in order. R-03 creates disposable pre-identity evidence, R-04 establishes the stable extension origin, R-06 consumes it, and R-11 creates the only ZIP/checksum intended for publication.
 
-**Next step:** R-12 awaits separate authorization; it has not started.
+**Next step:** R-13 awaits separate authorization; it has not started.
