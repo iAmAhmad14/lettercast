@@ -6,7 +6,7 @@ import { URL } from "node:url";
 export const APPROVED_EXTENSION_NAME = "Lettercast";
 export const APPROVED_EXTENSION_DESCRIPTION =
   "Enhances Letterboxd film pages with TMDB cast photos and character names.";
-export const APPROVED_EXTENSION_VERSION = "1.0.0";
+export const APPROVED_EXTENSION_VERSION = "1.1.0";
 
 export const defaultManifestUrl = new URL(
   "../apps/extension/.output/chrome-mv3/manifest.json",

@@ -29,7 +29,7 @@ export default defineConfig({
       name: "Lettercast",
       description:
         "Enhances Letterboxd film pages with TMDB cast photos and character names.",
-      version: "1.0.0",
+      version: "1.1.0",
       icons: {
         16: "icon/16.png",
         32: "icon/32.png",

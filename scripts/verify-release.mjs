@@ -10,7 +10,7 @@ import { verifyManifest } from "./verify-manifest.mjs";
 
 const PRODUCTION_BACKEND_ORIGIN =
   "https://lettercast-api.ahmad-713.workers.dev";
-const EXPECTED_ZIP_NAME = "lettercast-1.0.0-chrome.zip";
+const EXPECTED_ZIP_NAME = "lettercast-1.1.0-chrome.zip";
 
 function parseArguments(arguments_) {
   const options = {};
