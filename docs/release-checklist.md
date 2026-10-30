@@ -177,7 +177,7 @@ Lettercast v1.1.0 is an extension-only minor release implementing [ADR 0012](dec
 - [x] **V-03 — Implement exact unique native actor-link resolution**
   - **Evidence:** `apps/extension/src/content/actor-links.ts` and `cast-renderer.ts` wrap matched cards in `<a class="lettercast-cast__link" target="_blank" rel="noopener noreferrer">`, leaving unmatched or ambiguous cards unlinked. Boundary checks and E2E new-tab navigation pass.
 - [x] **V-04 — Rebuild and verify the v1.1.0 production artifact**
-  - **Evidence:** `lettercast-1.1.0-chrome.zip`; SHA-256 `<pending-rc-build>`; verified against stable ID `oibdnmbbockloodlflplcjdfpnnlppnl` and production backend origin `https://lettercast-api.ahmad-713.workers.dev`.
+  - **Evidence:** `lettercast-1.1.0-chrome.zip` (37,938 bytes); SHA-256 `267fe76ca34db5eead0e2830280b68b6de5d0516aedf9d25cb5955c387bffb88`; verified against stable ID `oibdnmbbockloodlflplcjdfpnnlppnl` and production backend origin `https://lettercast-api.ahmad-713.workers.dev`.
 - [ ] **V-05 — Owner manual Chrome acceptance**
   - **Prerequisite:** V-04. Load unpacked `lettercast-1.1.0-chrome.zip` in Chrome and verify cast-tab hiding across Crew/Details/Genres/Releases, direct `/cast/` and `/crew/` loads, clickable actor links opening in a new tab, and graceful failure behavior.
 - [ ] **V-06 — Merge to `main` and verify hosted CI**

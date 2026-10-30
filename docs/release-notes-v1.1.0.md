@@ -12,7 +12,7 @@ Lettercast enhances supported Letterboxd film pages with an extension-owned cast
 
 Download `lettercast-1.1.0-chrome.zip` and its `.sha256` file from the GitHub Release. Do **not** use GitHub's automatic **Source code** archives.
 
-- SHA-256: `<pending-rc-build>`
+- SHA-256: `267fe76ca34db5eead0e2830280b68b6de5d0516aedf9d25cb5955c387bffb88`
 - Stable extension ID: `oibdnmbbockloodlflplcjdfpnnlppnl`
 
 ## Install or update from 1.0.0
