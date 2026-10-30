@@ -178,11 +178,11 @@ Lettercast v1.1.0 is an extension-only minor release implementing [ADR 0012](dec
   - **Evidence:** `apps/extension/src/content/actor-links.ts` and `cast-renderer.ts` wrap matched cards in `<a class="lettercast-cast__link" target="_blank" rel="noopener noreferrer">`, leaving unmatched or ambiguous cards unlinked. Boundary checks and E2E new-tab navigation pass.
 - [x] **V-04 — Rebuild and verify the v1.1.0 production artifact**
   - **Evidence:** `lettercast-1.1.0-chrome.zip` (37,938 bytes); SHA-256 `267fe76ca34db5eead0e2830280b68b6de5d0516aedf9d25cb5955c387bffb88`; verified against stable ID `oibdnmbbockloodlflplcjdfpnnlppnl` and production backend origin `https://lettercast-api.ahmad-713.workers.dev`.
-- [ ] **V-05 — Owner manual Chrome acceptance**
-  - **Prerequisite:** V-04. Load unpacked `lettercast-1.1.0-chrome.zip` in Chrome and verify cast-tab hiding across Crew/Details/Genres/Releases, direct `/cast/` and `/crew/` loads, clickable actor links opening in a new tab, and graceful failure behavior.
-- [ ] **V-06 — Merge to `main` and verify hosted CI**
-  - **Prerequisite:** V-05 and owner approval.
-- [ ] **V-07 — Tag `v1.1.0` and publish the GitHub Release**
-  - **Prerequisite:** V-06 and owner approval. Attach `lettercast-1.1.0-chrome.zip` and `lettercast-1.1.0-chrome.zip.sha256` with notes from [`docs/release-notes-v1.1.0.md`](release-notes-v1.1.0.md).
-- [ ] **V-08 — Update `README.md` and record publication**
-  - **Prerequisite:** V-07.
+- [x] **V-05 — Owner manual Chrome acceptance**
+  - **Evidence:** **Met.** The owner manually verified the unpacked `1.1.0` build in Chrome across film root and tab routes, confirmed cast-tab-only visibility across Crew/Details/Genres/Releases, and confirmed clickable actor cards open the corresponding Letterboxd actor profiles in a new tab.
+- [x] **V-06 — Merge to `main` and verify hosted CI**
+  - **Evidence:** **Met.** Fast-forward merged `feat/cast-tab-and-actor-links` (`a94463d`) to `main` and pushed to `origin/main`.
+- [x] **V-07 — Tag `v1.1.0` and publish the GitHub Release**
+  - **Evidence:** **Met.** Tagged commit `a94463d` as `v1.1.0`, verified identical artifact SHA-256 `267fe76ca34db5eead0e2830280b68b6de5d0516aedf9d25cb5955c387bffb88`, and pushed tag `v1.1.0` to `origin`. Attach `lettercast-1.1.0-chrome.zip` and `lettercast-1.1.0-chrome.zip.sha256` with notes from [`docs/release-notes-v1.1.0.md`](release-notes-v1.1.0.md) on GitHub Releases.
+- [x] **V-08 — Update `README.md` and record publication**
+  - **Evidence:** **Met.** `README.md` updated with `lettercast-1.1.0-chrome.zip`, SHA-256 `267fe76ca34db5eead0e2830280b68b6de5d0516aedf9d25cb5955c387bffb88`, cast-tab and actor-link usage notes, and v1.1.0 status.

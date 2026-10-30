@@ -48,18 +48,18 @@ The content script only reads and renders the Letterboxd page. Its single applic
 
 1. Install the unpacked extension using the instructions below.
 2. Leave Lettercast enabled in your browser's extension manager.
-3. Open a supported movie page on [Letterboxd](https://letterboxd.com/).
-4. Scroll below Letterboxd's native cast list.
-5. The **Cast portraits** section appears automatically with up to ten actors, their TMDB portraits, and character names.
+3. Open a supported movie page on [Letterboxd](https://letterboxd.com/) (or its `/cast/`, `/crew/`, `/details/`, `/genres/`, or `/releases/` tab routes).
+4. Scroll below Letterboxd's native cast list while the **Cast** tab is active.
+5. The **Cast portraits** section appears automatically inside the Cast tab panel with up to ten actors, their TMDB portraits, and character names. Switching to Crew, Details, Genres, or Releases hides the section automatically, and clicking a matched actor card opens that actor's Letterboxd profile in a new tab.
 
 There is no account, settings page, or API key for users to configure. Unsupported pages are left unchanged. If the Lettercast backend or an image is unavailable, the native Letterboxd page remains usable.
 
 ## Showcase installation
 
-To install v1.0.0:
+To install v1.1.0:
 
-1. Download `lettercast-1.0.0-chrome.zip` from [GitHub Releases](../../releases). Do not download GitHub's automatic **Source code** archive.
-2. Optionally verify that the ZIP's SHA-256 is `2ce0db5ae36b93dd57a142f85455d1ad29fd203df265ed3901315ad28380121f`. On PowerShell, run `Get-FileHash .\lettercast-1.0.0-chrome.zip -Algorithm SHA256`.
+1. Download `lettercast-1.1.0-chrome.zip` from [GitHub Releases](../../releases). Do not download GitHub's automatic **Source code** archive.
+2. Optionally verify that the ZIP's SHA-256 is `267fe76ca34db5eead0e2830280b68b6de5d0516aedf9d25cb5955c387bffb88`. On PowerShell, run `Get-FileHash .\lettercast-1.1.0-chrome.zip -Algorithm SHA256`.
 3. Extract the ZIP to a permanent folder.
 4. Open `chrome://extensions` in Chrome or `edge://extensions` in Edge.
 5. Enable **Developer Mode**.
@@ -118,6 +118,8 @@ Lettercast was manually tested in Chrome for failure handling, compatibility, an
 | No duplicate cast blocks after reloads | Pass |
 | Extension ID stable across locations | Pass |
 | Disabling extension restores native behavior | Pass |
+| Cast-tab-scoped visibility across tabs and routes | Pass |
+| Clickable actor cards open Letterboxd profile in new tab | Pass |
 
 ### Failure handling
 
@@ -129,7 +131,7 @@ Unsupported Letterboxd pages remain unchanged and do not trigger Lettercast back
 
 ## Project status
 
-Lettercast v1.0.0 is available from the [GitHub Release](../../releases/tag/v1.0.0). The implementation, automated checks, release checksum verification, and manual browser acceptance are complete. Detailed release evidence is recorded in the [release checklist](docs/release-checklist.md), and the published notes are retained in [v1.0.0 release notes](docs/release-notes-v1.0.0.md).
+Lettercast v1.1.0 is available from [GitHub Releases](../../releases/tag/v1.1.0) (with v1.0.0 retained at [v1.0.0](../../releases/tag/v1.0.0)). The implementation, automated checks, release checksum verification, and manual browser acceptance are complete. Detailed release evidence is recorded in the [release checklist](docs/release-checklist.md), and the published notes are retained in [v1.1.0 release notes](docs/release-notes-v1.1.0.md) and [v1.0.0 release notes](docs/release-notes-v1.0.0.md).
 
 ## Repository layout
 
