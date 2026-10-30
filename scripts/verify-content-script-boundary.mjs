@@ -43,6 +43,17 @@ for (const required of [
   }
 }
 
+const renderer = sources[3];
+for (const required of [
+  "lettercast-cast__link",
+  'container.target = "_blank"',
+  'container.rel = "noopener noreferrer"',
+]) {
+  if (!renderer.includes(required)) {
+    throw new Error(`Cast renderer is missing a required ADR 0013 link attribute: ${required}`);
+  }
+}
+
 const actorLinks = sources[4];
 for (const required of [
   'normalize("NFC")',

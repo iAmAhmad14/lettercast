@@ -122,6 +122,13 @@ test("enhances a supported fixture through real MV3 messaging", async () => {
     await expect(page.locator(".lettercast-cast__character")).toHaveText(
       "Trinity",
     );
+    const actorLink = page.locator(".lettercast-cast__link");
+    await expect(actorLink).toHaveAttribute(
+      "href",
+      "https://letterboxd.com/actor/carrie-anne-moss/",
+    );
+    await expect(actorLink).toHaveAttribute("target", "_blank");
+    await expect(actorLink).toHaveAttribute("rel", "noopener noreferrer");
     expect(requests).toHaveLength(1);
     expect(requests[0]).toMatchObject({
       url: backendUrl,
@@ -224,6 +231,57 @@ test("enhances a direct film tab route with the cast block hidden until Cast is 
       document.querySelector("#tab-panel-crew")?.setAttribute("hidden", "until-found");
     });
     await expect(castBlock).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
+test("opens a matched actor's Letterboxd page in a new tab and leaves unmatched cards unlinked", async () => {
+  const html = await readFile(fixturePath, "utf8");
+  const actorPageUrl = "https://letterboxd.com/actor/carrie-anne-moss/";
+  const context = await launchExtension();
+  try {
+    await context.route(actorPageUrl, (route) =>
+      fulfillPage(route, "<!doctype html><html><title>Carrie-Anne Moss</title><body>Actor page</body></html>"),
+    );
+    await configureFixture(context, {
+      html,
+      backendBody: {
+        cast: [
+          {
+            id: 287,
+            name: "Carrie-Anne Moss",
+            character: "Trinity",
+            profilePath: null,
+            order: 0,
+          },
+          {
+            id: 999999,
+            name: "Unlisted Matrix Extra",
+            character: "Bystander",
+            profilePath: null,
+            order: 1,
+          },
+        ],
+      },
+    });
+    const page = await openFixture(context);
+
+    const cards = page.locator(".lettercast-cast__card");
+    await expect(cards).toHaveCount(2);
+    await expect(cards.nth(0).locator("a.lettercast-cast__link")).toHaveAttribute(
+      "href",
+      actorPageUrl,
+    );
+    await expect(cards.nth(1).locator("a")).toHaveCount(0);
+
+    const newPagePromise = context.waitForEvent("page");
+    await cards.nth(0).locator("a.lettercast-cast__link").click();
+    const actorPage = await newPagePromise;
+    await actorPage.waitForLoadState("domcontentloaded");
+
+    expect(actorPage.url()).toBe(actorPageUrl);
+    expect(await actorPage.evaluate(() => window.opener)).toBeNull();
   } finally {
     await context.close();
   }

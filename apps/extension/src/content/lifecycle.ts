@@ -1,5 +1,6 @@
 import type { GetCastRequest, GetCastResponse } from "@lettercast/contracts";
 
+import { readNativeActorLinks } from "./actor-links";
 import {
   LETTERCAST_CAST_MARKER,
   renderCastBlock,
@@ -15,14 +16,18 @@ type SendGetCast = (request: GetCastRequest) => Promise<GetCastResponse>;
 
 type RenderCast = typeof renderCastBlock;
 
+type ReadActorLinks = typeof readNativeActorLinks;
+
 type ContentLifecycleDependencies = {
   sendGetCast: SendGetCast;
   renderCast?: RenderCast;
+  readActorLinks?: ReadActorLinks;
 };
 
 export function createContentLifecycle({
   sendGetCast,
   renderCast = renderCastBlock,
+  readActorLinks = readNativeActorLinks,
 }: ContentLifecycleDependencies): (input: LifecycleInput) => Promise<void> {
   const attemptedDocuments = new WeakSet<Document>();
 
@@ -57,10 +62,18 @@ export function createContentLifecycle({
         return;
       }
 
+      let nativeActorLinks: ReadonlyMap<string, string> = new Map();
+      try {
+        nativeActorLinks = readActorLinks(page.castContainer);
+      } catch {
+        nativeActorLinks = new Map();
+      }
+
       renderCast({
         document,
         castContainer: page.castContainer,
         cast: response.cast,
+        nativeActorLinks,
       });
     } catch {
       document.querySelector(`[${LETTERCAST_CAST_MARKER}]`)?.remove();

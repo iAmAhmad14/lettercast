@@ -65,6 +65,12 @@ describe("content-script lifecycle", () => {
     expect(document.querySelector(".lettercast-cast__name")?.textContent).toBe(
       "Carrie-Anne Moss",
     );
+    const link = document.querySelector<HTMLAnchorElement>(
+      ".lettercast-cast__link",
+    );
+    expect(link?.href).toBe("https://letterboxd.com/actor/carrie-anne-moss/");
+    expect(link?.target).toBe("_blank");
+    expect(link?.rel).toBe("noopener noreferrer");
     expect(
       nativeCast?.lastElementChild?.hasAttribute(LETTERCAST_CAST_MARKER),
     ).toBe(true);
@@ -175,6 +181,26 @@ describe("content-script lifecycle", () => {
     expect(document.querySelectorAll(`[${LETTERCAST_CAST_MARKER}]`)).toHaveLength(
       1,
     );
+  });
+
+  it("renders unlinked cards when native actor-link extraction throws", async () => {
+    loadPage();
+    const enhancePage = createContentLifecycle({
+      sendGetCast: async () => successfulResponse(),
+      readActorLinks: () => {
+        throw new Error("DOM selector failure");
+      },
+    });
+
+    await expect(enhancePage({ document, pageUrl })).resolves.toBeUndefined();
+
+    expect(document.querySelectorAll(`[${LETTERCAST_CAST_MARKER}]`)).toHaveLength(
+      1,
+    );
+    expect(document.querySelector(".lettercast-cast__name")?.textContent).toBe(
+      "Carrie-Anne Moss",
+    );
+    expect(document.querySelector(".lettercast-cast__link")).toBeNull();
   });
 
   it("removes extension-owned output and contains a renderer exception", async () => {

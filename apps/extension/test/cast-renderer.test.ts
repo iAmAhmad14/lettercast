@@ -254,6 +254,52 @@ describe("renderCastBlock", () => {
     expect(logo?.src).toBeTruthy();
   });
 
+  it("links matched cast cards to Letterboxd actor pages and leaves unmatched cards unlinked", () => {
+    const castContainer = arrange();
+    const nativeActorLinks = new Map([
+      ["first actor", "https://letterboxd.com/actor/first-actor/"],
+    ]);
+
+    renderCastBlock({
+      document,
+      castContainer,
+      cast: completeCast,
+      nativeActorLinks,
+    });
+
+    const cards = [...document.querySelectorAll(".lettercast-cast__card")];
+    expect(cards).toHaveLength(2);
+
+    const firstLink = cards[0]?.querySelector<HTMLAnchorElement>(
+      "a.lettercast-cast__link",
+    );
+    expect(firstLink).not.toBeNull();
+    expect(firstLink?.href).toBe("https://letterboxd.com/actor/first-actor/");
+    expect(firstLink?.target).toBe("_blank");
+    expect(firstLink?.rel).toBe("noopener noreferrer");
+    expect(firstLink?.getAttribute("aria-label")).toBe(
+      "First Actor on Letterboxd (opens in a new tab)",
+    );
+    expect(firstLink?.querySelector(".lettercast-cast__name")?.textContent).toBe(
+      "First Actor",
+    );
+
+    expect(cards[1]?.querySelector("a")).toBeNull();
+    expect(cards[1]?.querySelector(".lettercast-cast__name")?.textContent).toBe(
+      "Second Actor",
+    );
+
+    const linkedImage = firstLink?.querySelector<HTMLImageElement>(
+      ".lettercast-cast__image",
+    );
+    const linkedPlaceholder = firstLink?.querySelector<HTMLElement>(
+      ".lettercast-cast__placeholder",
+    );
+    linkedImage?.dispatchEvent(new Event("error"));
+    expect(firstLink?.querySelector(".lettercast-cast__image")).toBeNull();
+    expect(linkedPlaceholder?.hidden).toBe(false);
+  });
+
   it("keeps responsive portraits within the verified 92 CSS pixel limit", async () => {
     const stylesheet = await readFile(
       resolve(process.cwd(), "src/content/cast-renderer.css"),

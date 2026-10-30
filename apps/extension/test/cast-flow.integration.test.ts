@@ -92,6 +92,9 @@ describe("content-to-service-worker integration", () => {
       "Carrie-Anne Moss",
     );
     expect(
+      document.querySelector<HTMLAnchorElement>(".lettercast-cast__link")?.href,
+    ).toBe("https://letterboxd.com/actor/carrie-anne-moss/");
+    expect(
       nativeCast?.lastElementChild?.hasAttribute(LETTERCAST_CAST_MARKER),
     ).toBe(true);
     expect(

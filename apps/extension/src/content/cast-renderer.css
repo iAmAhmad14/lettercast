@@ -39,6 +39,28 @@
   margin: 0;
 }
 
+.lettercast-cast__link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 0.25rem;
+}
+
+.lettercast-cast__link:hover .lettercast-cast__name,
+.lettercast-cast__link:focus-visible .lettercast-cast__name {
+  text-decoration: underline;
+}
+
+.lettercast-cast__link:hover .lettercast-cast__portrait,
+.lettercast-cast__link:focus-visible .lettercast-cast__portrait {
+  filter: brightness(1.08);
+}
+
+.lettercast-cast__link:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
 .lettercast-cast__portrait,
 .lettercast-cast__image,
 .lettercast-cast__placeholder {

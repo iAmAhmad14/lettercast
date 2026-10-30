@@ -1,6 +1,7 @@
 import type { CastMember } from "@lettercast/contracts";
 import { parseProfilePath } from "@lettercast/contracts";
 
+import { resolveActorLinks } from "./actor-links";
 import tmdbLogoUrl from "./assets/tmdb-short-blue.svg?url";
 import "./cast-renderer.css";
 
@@ -17,6 +18,7 @@ type RenderCastOptions = {
   document: Document;
   castContainer: Element;
   cast: readonly CastMember[];
+  nativeActorLinks?: ReadonlyMap<string, string>;
 };
 
 export function buildTmdbProfileUrl(profilePath: unknown): string | null {
@@ -80,21 +82,40 @@ function createPortrait(
   return frame;
 }
 
-function createCastCard(document: Document, member: CastMember): HTMLElement {
+function createCastCard(
+  document: Document,
+  member: CastMember,
+  actorUrl?: string,
+): HTMLElement {
   const card = document.createElement("article");
   card.className = "lettercast-cast__card";
-  card.append(createPortrait(document, member));
+
+  const container =
+    actorUrl === undefined ? card : document.createElement("a");
+  if (container instanceof HTMLAnchorElement && actorUrl !== undefined) {
+    container.className = "lettercast-cast__link";
+    container.href = actorUrl;
+    container.target = "_blank";
+    container.rel = "noopener noreferrer";
+    container.setAttribute(
+      "aria-label",
+      `${member.name} on Letterboxd (opens in a new tab)`,
+    );
+    card.append(container);
+  }
+
+  container.append(createPortrait(document, member));
 
   const name = document.createElement("p");
   name.className = "lettercast-cast__name";
   name.textContent = member.name;
-  card.append(name);
+  container.append(name);
 
   if (member.character !== null && member.character !== "") {
     const character = document.createElement("p");
     character.className = "lettercast-cast__character";
     character.textContent = member.character;
-    card.append(character);
+    container.append(character);
   }
 
   return card;
@@ -134,6 +155,7 @@ export function renderCastBlock({
   document,
   castContainer,
   cast,
+  nativeActorLinks,
 }: RenderCastOptions): HTMLElement | null {
   if (
     cast.length === 0 ||
@@ -158,10 +180,19 @@ export function renderCastBlock({
   title.className = "lettercast-cast__title";
   title.textContent = "Cast portraits";
 
+  let actorLinks: ReadonlyMap<number, string> = new Map();
+  if (nativeActorLinks !== undefined) {
+    try {
+      actorLinks = resolveActorLinks(selectedCast, nativeActorLinks);
+    } catch {
+      actorLinks = new Map();
+    }
+  }
+
   const grid = document.createElement("div");
   grid.className = "lettercast-cast__grid";
   for (const member of selectedCast) {
-    grid.append(createCastCard(document, member));
+    grid.append(createCastCard(document, member, actorLinks.get(member.id)));
   }
 
   block.append(title, grid, createCredits(document));
