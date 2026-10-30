@@ -115,7 +115,7 @@ test("enhances a supported fixture through real MV3 messaging", async () => {
     });
     const page = await openFixture(context);
 
-    await expect(page.locator("#tab-panel-cast + [data-lettercast-cast]")).toBeVisible();
+    await expect(page.locator("#tab-panel-cast > [data-lettercast-cast]")).toBeVisible();
     await expect(page.locator(".lettercast-cast__name")).toHaveText(
       "Carrie-Anne Moss",
     );
@@ -157,6 +157,37 @@ test("enhances a supported fixture through real MV3 messaging", async () => {
     ]) {
       expect(reloadRequestTrace).not.toContain(prohibited.toLowerCase());
     }
+  } finally {
+    await context.close();
+  }
+});
+
+test("hides the cast block when the cast tab panel is hidden and shows it when active", async () => {
+  const html = await readFile(fixturePath, "utf8");
+  const context = await launchExtension();
+  try {
+    await configureFixture(context, { html });
+    const page = await openFixture(context);
+    const castBlock = page.locator("#tab-panel-cast > [data-lettercast-cast]");
+
+    await expect(castBlock).toBeVisible();
+
+    await page.evaluate(() => {
+      document.querySelector("#tab-panel-cast")?.setAttribute("hidden", "until-found");
+      document.querySelector("#tab-panel-crew")?.removeAttribute("hidden");
+    });
+    await expect(castBlock).toBeHidden();
+    expect(
+      await page.evaluate(() =>
+        document.querySelector("[data-lettercast-cast]")?.checkVisibility(),
+      ),
+    ).toBe(false);
+
+    await page.evaluate(() => {
+      document.querySelector("#tab-panel-cast")?.removeAttribute("hidden");
+      document.querySelector("#tab-panel-crew")?.setAttribute("hidden", "until-found");
+    });
+    await expect(castBlock).toBeVisible();
   } finally {
     await context.close();
   }

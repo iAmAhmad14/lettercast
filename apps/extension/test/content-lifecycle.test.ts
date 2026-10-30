@@ -40,7 +40,9 @@ describe("content-script lifecycle", () => {
   it("sends only the movie ID contract and renders one Model B block", async () => {
     loadPage();
     const nativeCast = document.querySelector("#tab-panel-cast");
-    const originalNativeMarkup = nativeCast?.outerHTML;
+    const originalNativeChildren = [...(nativeCast?.children ?? [])].map(
+      (child) => child.outerHTML,
+    );
     const sendGetCast = vi.fn(
       async (request: GetCastRequest): Promise<GetCastResponse> => {
         void request;
@@ -63,7 +65,14 @@ describe("content-script lifecycle", () => {
     expect(document.querySelector(".lettercast-cast__name")?.textContent).toBe(
       "Carrie-Anne Moss",
     );
-    expect(nativeCast?.outerHTML).toBe(originalNativeMarkup);
+    expect(
+      nativeCast?.lastElementChild?.hasAttribute(LETTERCAST_CAST_MARKER),
+    ).toBe(true);
+    expect(
+      [...(nativeCast?.children ?? [])]
+        .filter((child) => !child.hasAttribute(LETTERCAST_CAST_MARKER))
+        .map((child) => child.outerHTML),
+    ).toEqual(originalNativeChildren);
   });
 
   it.each([
@@ -200,7 +209,9 @@ describe("content-script lifecycle", () => {
   it("turns a profile image error into a placeholder without touching native cast", async () => {
     loadPage();
     const nativeCast = document.querySelector("#tab-panel-cast");
-    const originalNativeMarkup = nativeCast?.outerHTML;
+    const originalNativeChildren = [...(nativeCast?.children ?? [])].map(
+      (child) => child.outerHTML,
+    );
     const enhancePage = createContentLifecycle({
       sendGetCast: async () => successfulResponse(),
     });
@@ -216,6 +227,10 @@ describe("content-script lifecycle", () => {
 
     expect(image?.isConnected).toBe(false);
     expect(placeholder?.hidden).toBe(false);
-    expect(nativeCast?.outerHTML).toBe(originalNativeMarkup);
+    expect(
+      [...(nativeCast?.children ?? [])]
+        .filter((child) => !child.hasAttribute(LETTERCAST_CAST_MARKER))
+        .map((child) => child.outerHTML),
+    ).toEqual(originalNativeChildren);
   });
 });

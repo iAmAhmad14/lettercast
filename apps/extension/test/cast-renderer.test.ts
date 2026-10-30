@@ -57,7 +57,8 @@ describe("renderCastBlock", () => {
         (node) => node.textContent,
       ),
     ).toEqual(["First Role", "Second Role"]);
-    expect(block?.previousElementSibling).toBe(castContainer);
+    expect(block?.parentElement).toBe(castContainer);
+    expect(castContainer.lastElementChild).toBe(block);
   });
 
   it("omits absent character text and uses a placeholder for no profile", () => {
@@ -212,14 +213,21 @@ describe("renderCastBlock", () => {
     ]);
   });
 
-  it("does not alter the native cast subtree", () => {
+  it("appends as the last child without altering native cast nodes", () => {
     const castContainer = arrange();
-    const originalMarkup = castContainer.outerHTML;
+    const originalNativeChildren = [...castContainer.children].map(
+      (child) => child.outerHTML,
+    );
 
-    renderCastBlock({ document, castContainer, cast: completeCast });
+    const block = renderCastBlock({ document, castContainer, cast: completeCast });
 
-    expect(castContainer.outerHTML).toBe(originalMarkup);
-    expect(castContainer.querySelector(`[${LETTERCAST_CAST_MARKER}]`)).toBeNull();
+    expect(block).not.toBeNull();
+    expect(castContainer.lastElementChild).toBe(block);
+    expect(
+      [...castContainer.children]
+        .filter((child) => !child.hasAttribute(LETTERCAST_CAST_MARKER))
+        .map((child) => child.outerHTML),
+    ).toEqual(originalNativeChildren);
   });
 
   it("includes TMDB credits, lazy images, and reserved geometry", () => {

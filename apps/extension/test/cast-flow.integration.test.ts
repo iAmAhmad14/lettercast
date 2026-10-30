@@ -52,7 +52,9 @@ describe("content-to-service-worker integration", () => {
   it("passes only the verified movie ID through one message and backend request", async () => {
     loadPage();
     const nativeCast = document.querySelector("#tab-panel-cast");
-    const originalNativeMarkup = nativeCast?.outerHTML;
+    const originalNativeChildren = [...(nativeCast?.children ?? [])].map(
+      (child) => child.outerHTML,
+    );
     const fetchBackend = vi.fn<FetchBackend>(async () =>
       jsonResponse({
         cast: [
@@ -89,7 +91,14 @@ describe("content-to-service-worker integration", () => {
     expect(document.querySelector(".lettercast-cast__name")?.textContent).toBe(
       "Carrie-Anne Moss",
     );
-    expect(nativeCast?.outerHTML).toBe(originalNativeMarkup);
+    expect(
+      nativeCast?.lastElementChild?.hasAttribute(LETTERCAST_CAST_MARKER),
+    ).toBe(true);
+    expect(
+      [...(nativeCast?.children ?? [])]
+        .filter((child) => !child.hasAttribute(LETTERCAST_CAST_MARKER))
+        .map((child) => child.outerHTML),
+    ).toEqual(originalNativeChildren);
     expect(document.querySelectorAll(`[${LETTERCAST_CAST_MARKER}]`)).toHaveLength(
       1,
     );

@@ -165,6 +165,6 @@ export function renderCastBlock({
   }
 
   block.append(title, grid, createCredits(document));
-  castContainer.after(block);
+  castContainer.append(block);
   return block;
 }
