@@ -19,7 +19,9 @@ function isCanonicalLetterboxdFilmUrl(value: string | URL): boolean {
       url.protocol === "https:" &&
       url.hostname === "letterboxd.com" &&
       url.port === "" &&
-      /^\/film\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\/$/u.test(url.pathname)
+      /^\/film\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\/(?:(?:cast|crew|details|genres|releases)\/)?$/u.test(
+        url.pathname,
+      )
     );
   } catch {
     return false;

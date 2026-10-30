@@ -33,6 +33,19 @@ describe("Letterboxd movie-page identity", () => {
     expect(result?.castContainer.id).toBe("tab-panel-cast");
   });
 
+  it.each([
+    "https://letterboxd.com/film/the-matrix/cast/",
+    "https://letterboxd.com/film/the-matrix/crew/",
+    "https://letterboxd.com/film/the-matrix/details/",
+    "https://letterboxd.com/film/the-matrix/genres/",
+    "https://letterboxd.com/film/the-matrix/releases/",
+  ])("accepts canonical film tab route %s", (url) => {
+    const result = detect(matrixHtml, url);
+
+    expect(result?.tmdbId).toBe(603);
+    expect(result?.castContainer.id).toBe("tab-panel-cast");
+  });
+
   it("requires the verified uppercase TMDB tracking value", () => {
     const html = baseFixture(
       undefined,
@@ -106,6 +119,10 @@ describe("Letterboxd movie-page identity", () => {
     "https://letterboxd.com/actor/sample/",
     "https://letterboxd.com/user/sample/film/the-matrix/",
     "https://letterboxd.com/film/the-matrix/reviews/",
+    "https://letterboxd.com/film/the-matrix/cast/extra/",
+    "https://letterboxd.com/film/the-matrix/CAST/",
+    "https://letterboxd.com/film/the-matrix/cast",
+    "https://letterboxd.com/film/the-matrix/releases/by-date/",
   ])("rejects unrelated or noncanonical page %s", (url) => {
     expect(detect(matrixHtml, url)).toBeNull();
   });

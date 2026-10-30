@@ -193,6 +193,42 @@ test("hides the cast block when the cast tab panel is hidden and shows it when a
   }
 });
 
+test("enhances a direct film tab route with the cast block hidden until Cast is selected", async () => {
+  const crewRouteUrl = "https://letterboxd.com/film/the-matrix/crew/";
+  const crewRouteHtml = (await readFile(fixturePath, "utf8"))
+    .replace('<div id="tab-panel-cast">', '<div id="tab-panel-cast" hidden="until-found">')
+    .replace(
+      '<div id="tab-panel-crew" class="column-block" role="tabpanel" hidden="until-found">',
+      '<div id="tab-panel-crew" class="column-block" role="tabpanel">',
+    );
+  let backendRequests = 0;
+  const context = await launchExtension();
+  try {
+    await context.route(crewRouteUrl, (route) => fulfillPage(route, crewRouteHtml));
+    await configureFixture(context, {
+      html: crewRouteHtml,
+      onBackendRequest: () => {
+        backendRequests += 1;
+      },
+    });
+    const page = await context.newPage();
+    await page.goto(crewRouteUrl, { waitUntil: "domcontentloaded" });
+
+    const castBlock = page.locator("#tab-panel-cast > [data-lettercast-cast]");
+    await expect(castBlock).toHaveCount(1);
+    await expect(castBlock).toBeHidden();
+    expect(backendRequests).toBe(1);
+
+    await page.evaluate(() => {
+      document.querySelector("#tab-panel-cast")?.removeAttribute("hidden");
+      document.querySelector("#tab-panel-crew")?.setAttribute("hidden", "until-found");
+    });
+    await expect(castBlock).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
 test("leaves the page unchanged when the backend fails", async () => {
   const html = await readFile(fixturePath, "utf8");
   const context = await launchExtension();

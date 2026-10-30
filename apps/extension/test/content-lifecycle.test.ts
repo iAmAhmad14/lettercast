@@ -76,6 +76,23 @@ describe("content-script lifecycle", () => {
   });
 
   it.each([
+    "https://letterboxd.com/film/the-matrix/cast/",
+    "https://letterboxd.com/film/the-matrix/crew/",
+  ])("dispatches once and renders on supported film tab route %s", async (tabUrl) => {
+    loadPage();
+    const sendGetCast = vi.fn(async () => successfulResponse());
+    const enhancePage = createContentLifecycle({ sendGetCast });
+
+    await enhancePage({ document, pageUrl: tabUrl });
+
+    expect(sendGetCast).toHaveBeenCalledOnce();
+    expect(sendGetCast).toHaveBeenCalledWith({ type: "get-cast", tmdbId: 603 });
+    expect(
+      document.querySelectorAll(`#tab-panel-cast > [${LETTERCAST_CAST_MARKER}]`),
+    ).toHaveLength(1);
+  });
+
+  it.each([
     ["unsupported URL", matrixHtml, "https://letterboxd.com/films/"],
     [
       "missing cast",
