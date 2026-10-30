@@ -165,3 +165,24 @@ None for v1.0.0 publication.
 Complete R-01 through R-17 in order. R-03 creates disposable pre-identity evidence, R-04 establishes the stable extension origin, R-06 consumes it, and R-11 creates the only ZIP/checksum intended for publication.
 
 **Status:** Lettercast v1.0.0 is published and R-17 is complete. Future work is maintenance or separately approved post-v1 scope.
+
+## Lettercast v1.1.0 Release Checklist
+
+Lettercast v1.1.0 is an extension-only minor release implementing [ADR 0012](decisions/0012-render-inside-the-native-cast-tab-panel.md) (cast-tab-panel mounting and film tab routes) and [ADR 0013](decisions/0013-link-cast-cards-to-native-letterboxd-actor-pages.md) (exact, unique, same-page native Letterboxd actor links). The Cloudflare Worker, runtime message contract, permissions, and stable Chrome extension ID `oibdnmbbockloodlflplcjdfpnnlppnl` are unchanged.
+
+- [x] **V-01 — Record spike evidence and architecture decisions**
+  - **Evidence:** [2026-10-29 spike](spikes/2026-10-29-letterboxd-cast-tabs-and-actor-links.md), [ADR 0012](decisions/0012-render-inside-the-native-cast-tab-panel.md), [ADR 0013](decisions/0013-link-cast-cards-to-native-letterboxd-actor-pages.md), and updated [`docs/architecture.md`](architecture.md).
+- [x] **V-02 — Implement cast-tab-scoped rendering and film tab routes**
+  - **Evidence:** Block mounts as the last child of `#tab-panel-cast`; canonical URL check accepts `/film/{slug}/` and `/film/{slug}/{cast|crew|details|genres|releases}/`. Unit, lifecycle, integration, and Playwright E2E tests pass.
+- [x] **V-03 — Implement exact unique native actor-link resolution**
+  - **Evidence:** `apps/extension/src/content/actor-links.ts` and `cast-renderer.ts` wrap matched cards in `<a class="lettercast-cast__link" target="_blank" rel="noopener noreferrer">`, leaving unmatched or ambiguous cards unlinked. Boundary checks and E2E new-tab navigation pass.
+- [x] **V-04 — Rebuild and verify the v1.1.0 production artifact**
+  - **Evidence:** `lettercast-1.1.0-chrome.zip`; SHA-256 `<pending-rc-build>`; verified against stable ID `oibdnmbbockloodlflplcjdfpnnlppnl` and production backend origin `https://lettercast-api.ahmad-713.workers.dev`.
+- [ ] **V-05 — Owner manual Chrome acceptance**
+  - **Prerequisite:** V-04. Load unpacked `lettercast-1.1.0-chrome.zip` in Chrome and verify cast-tab hiding across Crew/Details/Genres/Releases, direct `/cast/` and `/crew/` loads, clickable actor links opening in a new tab, and graceful failure behavior.
+- [ ] **V-06 — Merge to `main` and verify hosted CI**
+  - **Prerequisite:** V-05 and owner approval.
+- [ ] **V-07 — Tag `v1.1.0` and publish the GitHub Release**
+  - **Prerequisite:** V-06 and owner approval. Attach `lettercast-1.1.0-chrome.zip` and `lettercast-1.1.0-chrome.zip.sha256` with notes from [`docs/release-notes-v1.1.0.md`](release-notes-v1.1.0.md).
+- [ ] **V-08 — Update `README.md` and record publication**
+  - **Prerequisite:** V-07.
