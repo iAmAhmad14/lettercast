@@ -3,8 +3,35 @@
   <body data-type="film" data-tmdb-type="movie" data-tmdb-id="603">
     <main>
       <a href="https://www.themoviedb.org/movie/603/" data-track-action="TMDB">TMDB</a>
-      <div id="tab-panel-cast">
-        <div class="cast-list text-sluglist"><a href="/actor/sample-two/">Sample Two</a></div>
+      <div class="cast-crew-details-tabs">
+        <div class="content-tab-filters">
+          <div class="tablist" role="tablist">
+            <a id="tab-cast" class="trigger" href="/film/the-matrix/cast/" role="tab" aria-controls="tab-panel-cast" aria-selected="true"><span class="label">Cast</span></a>
+            <a id="tab-crew" class="trigger" href="/film/the-matrix/crew/" role="tab" aria-controls="tab-panel-crew" aria-selected="false"><span class="label">Crew</span></a>
+            <a id="tab-details" class="trigger" href="/film/the-matrix/details/" role="tab" aria-controls="tab-panel-details" aria-selected="false"><span class="label">Details</span></a>
+            <a id="tab-genres" class="trigger" href="/film/the-matrix/genres/" role="tab" aria-controls="tab-panel-genres" aria-selected="false"><span class="label">Genres</span></a>
+            <a id="tab-releases" class="trigger" href="/film/the-matrix/releases/" role="tab" aria-controls="tab-panel-releases" aria-selected="false"><span class="label">Releases</span></a>
+          </div>
+        </div>
+        <div id="tab-panel-cast">
+          <h3 class="hidden">Cast</h3>
+          <div class="cast-list text-sluglist">
+            <a title="Neo" href="/actor/keanu-reeves/" class="text-slug tooltip">Keanu Reeves</a>
+            <a title="Trinity" href="/actor/carrie-anne-moss/" class="text-slug tooltip">Carrie-Anne Moss</a>
+            <a title="Sample Role" href="/actor/sample-two/" class="text-slug tooltip">Sample Two</a>
+            <a class="text-slug" id="has-cast-overflow">Show All…</a>
+            <span id="cast-overflow" class="sluglist-overflow" style="display:none;">
+              <a title="Contributor Role" href="/actor/contributor:17664/" class="text-slug tooltip">Elliot Page</a>
+              <a title="Numbered Slug Role" href="/actor/choi-woo-shik-1/" class="text-slug tooltip">Choi Woo-shik</a>
+            </span>
+          </div>
+        </div>
+        <div id="tab-panel-crew" class="column-block" role="tabpanel" hidden="until-found">
+          <div class="text-sluglist"><a href="/director/lana-wachowski/" class="text-slug">Lana Wachowski</a></div>
+        </div>
+        <div id="tab-panel-details" class="column-block" role="tabpanel" hidden="until-found"></div>
+        <div id="tab-panel-genres" class="column-block" role="tabpanel" hidden="until-found"></div>
+        <div id="tab-panel-releases" role="tabpanel" hidden="until-found"></div>
       </div>
     </main>
   </body>

@@ -3,8 +3,35 @@
   <body data-type="film" data-tmdb-type="movie" data-tmdb-id="693134">
     <main>
       <a href="https://www.themoviedb.org/movie/693134/" data-track-action="TMDB">TMDB</a>
-      <div id="tab-panel-cast">
-        <div class="cast-list text-sluglist"><a href="/actor/sample-one/">Sample One</a></div>
+      <div class="cast-crew-details-tabs">
+        <div class="content-tab-filters">
+          <div class="tablist" role="tablist">
+            <a id="tab-cast" class="trigger" href="/film/dune-part-two/cast/" role="tab" aria-controls="tab-panel-cast" aria-selected="true"><span class="label">Cast</span></a>
+            <a id="tab-crew" class="trigger" href="/film/dune-part-two/crew/" role="tab" aria-controls="tab-panel-crew" aria-selected="false"><span class="label">Crew</span></a>
+            <a id="tab-details" class="trigger" href="/film/dune-part-two/details/" role="tab" aria-controls="tab-panel-details" aria-selected="false"><span class="label">Details</span></a>
+            <a id="tab-genres" class="trigger" href="/film/dune-part-two/genres/" role="tab" aria-controls="tab-panel-genres" aria-selected="false"><span class="label">Genres</span></a>
+            <a id="tab-releases" class="trigger" href="/film/dune-part-two/releases/" role="tab" aria-controls="tab-panel-releases" aria-selected="false"><span class="label">Releases</span></a>
+          </div>
+        </div>
+        <div id="tab-panel-cast">
+          <h3 class="hidden">Cast</h3>
+          <div class="cast-list text-sluglist">
+            <a title="Paul Atreides" href="/actor/timothee-chalamet/" class="text-slug tooltip">Timothée Chalamet</a>
+            <a title="Chani" href="/actor/zendaya/" class="text-slug tooltip">Zendaya</a>
+            <a title="Sample Role" href="/actor/sample-one/" class="text-slug tooltip">Sample One</a>
+            <a class="text-slug" id="has-cast-overflow">Show All…</a>
+            <span id="cast-overflow" class="sluglist-overflow" style="display:none;">
+              <a title="Lady Margot Fenring" href="/actor/lea-seydoux/" class="text-slug tooltip">Léa Seydoux</a>
+              <a title="Contributor Role" href="/actor/contributor:17664/" class="text-slug tooltip">Elliot Page</a>
+            </span>
+          </div>
+        </div>
+        <div id="tab-panel-crew" class="column-block" role="tabpanel" hidden="until-found">
+          <div class="text-sluglist"><a href="/director/denis-villeneuve/" class="text-slug">Denis Villeneuve</a></div>
+        </div>
+        <div id="tab-panel-details" class="column-block" role="tabpanel" hidden="until-found"></div>
+        <div id="tab-panel-genres" class="column-block" role="tabpanel" hidden="until-found"></div>
+        <div id="tab-panel-releases" role="tabpanel" hidden="until-found"></div>
       </div>
     </main>
   </body>

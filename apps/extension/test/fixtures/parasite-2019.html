@@ -3,8 +3,35 @@
   <body data-type="film" data-tmdb-type="movie" data-tmdb-id="496243">
     <main>
       <a href="https://www.themoviedb.org/movie/496243/" data-track-action="TMDB">TMDB</a>
-      <div id="tab-panel-cast">
-        <div class="cast-list text-sluglist"><a href="/actor/sample-three/">Sample Three</a></div>
+      <div class="cast-crew-details-tabs">
+        <div class="content-tab-filters">
+          <div class="tablist" role="tablist">
+            <a id="tab-cast" class="trigger" href="/film/parasite-2019/cast/" role="tab" aria-controls="tab-panel-cast" aria-selected="true"><span class="label">Cast</span></a>
+            <a id="tab-crew" class="trigger" href="/film/parasite-2019/crew/" role="tab" aria-controls="tab-panel-crew" aria-selected="false"><span class="label">Crew</span></a>
+            <a id="tab-details" class="trigger" href="/film/parasite-2019/details/" role="tab" aria-controls="tab-panel-details" aria-selected="false"><span class="label">Details</span></a>
+            <a id="tab-genres" class="trigger" href="/film/parasite-2019/genres/" role="tab" aria-controls="tab-panel-genres" aria-selected="false"><span class="label">Genres</span></a>
+            <a id="tab-releases" class="trigger" href="/film/parasite-2019/releases/" role="tab" aria-controls="tab-panel-releases" aria-selected="false"><span class="label">Releases</span></a>
+          </div>
+        </div>
+        <div id="tab-panel-cast">
+          <h3 class="hidden">Cast</h3>
+          <div class="cast-list text-sluglist">
+            <a title="Kim Ki-taek" href="/actor/song-kang-ho/" class="text-slug tooltip">Song Kang-ho</a>
+            <a title="Ki-woo" href="/actor/choi-woo-shik-1/" class="text-slug tooltip">Choi Woo-shik</a>
+            <a title="Sample Role" href="/actor/sample-three/" class="text-slug tooltip">Sample Three</a>
+            <a class="text-slug" id="has-cast-overflow">Show All…</a>
+            <span id="cast-overflow" class="sluglist-overflow" style="display:none;">
+              <a title="Chung-sook" href="/actor/jang-hye-jin-1/" class="text-slug tooltip">Jang Hye-jin</a>
+              <a title="Contributor Role" href="/actor/contributor:17664/" class="text-slug tooltip">Elliot Page</a>
+            </span>
+          </div>
+        </div>
+        <div id="tab-panel-crew" class="column-block" role="tabpanel" hidden="until-found">
+          <div class="text-sluglist"><a href="/director/bong-joon-ho/" class="text-slug">Bong Joon-ho</a></div>
+        </div>
+        <div id="tab-panel-details" class="column-block" role="tabpanel" hidden="until-found"></div>
+        <div id="tab-panel-genres" class="column-block" role="tabpanel" hidden="until-found"></div>
+        <div id="tab-panel-releases" role="tabpanel" hidden="until-found"></div>
       </div>
     </main>
   </body>
