@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. Amended by [ADR 0012](0012-render-inside-the-native-cast-tab-panel.md), which mounts the block inside the native cast tab panel, and by [ADR 0013](0013-link-cast-cards-to-native-letterboxd-actor-pages.md), which permits exact, unique, same-page actor-link resolution used only to add hyperlinks. Model B, untouched native cast nodes, the ban on fuzzy matching, and safe rendering remain in force.
 
 ## Context
 

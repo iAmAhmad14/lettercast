@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. The supported-route scope is amended by [ADR 0012](0012-render-inside-the-native-cast-tab-panel.md), which also accepts the film tab routes `/film/{slug}/{cast|crew|details|genres|releases}/`. The identity rules are unchanged.
 
 ## Context
 

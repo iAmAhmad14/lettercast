@@ -1,15 +1,16 @@
 # Lettercast Architecture
 
-Lettercast is a Chrome-first browser extension that adds actor profile images and character names to Letterboxd movie pages using TMDB data. This document is the current architecture source of truth for v1. Decision history lives in [`docs/decisions/`](decisions/), and implementation evidence lives in [`docs/spikes/`](spikes/).
+Lettercast is a Chrome-first browser extension that adds actor profile images and character names to Letterboxd movie pages using TMDB data. This document is the current architecture source of truth for v1, including the v1.1.0 cast-tab and actor-link changes. Decision history lives in [`docs/decisions/`](decisions/), and implementation evidence lives in [`docs/spikes/`](spikes/).
 
 This document distinguishes locked architectural decisions from verified implementation facts and remaining questions. It does not define a repository layout or an implementation plan.
 
 ## 1. Architecture Decisions
 
 - Build the extension on Manifest V3 with WXT. Use pnpm as the package manager.
-- Support canonical Letterboxd film-detail pages for movies only in v1.
-- Use Model B rendering: add a visually distinct, extension-owned cast block and never edit Letterboxd cast nodes.
-- Identify films only from TMDB identity already present on the page. Never use fuzzy title/year matching or actor identity matching.
+- Support canonical Letterboxd film-detail pages for movies only in v1: `/film/{slug}/` and its tab routes `/film/{slug}/{cast|crew|details|genres|releases}/`. See ADR 0012.
+- Use Model B rendering: add a visually distinct, extension-owned cast block as the last child of the native cast tab panel, and never edit Letterboxd cast nodes. See ADR 0012.
+- Identify films only from TMDB identity already present on the page. Never use fuzzy title/year matching or fuzzy actor matching.
+- The only permitted actor association is exact, unique, same-page resolution of a TMDB cast name to a native Letterboxd actor anchor. It is used solely to add a link to the actor's Letterboxd page. See ADR 0013.
 - Separate the system into a DOM-only content script, an ephemeral MV3 service worker, and a public Cloudflare Worker.
 - Make the service worker the extension's sole programmatic network egress and expose only one `get-cast` operation.
 - Keep the TMDB credential only in Cloudflare as a Wrangler secret.
@@ -24,7 +25,7 @@ This document distinguishes locked architectural decisions from verified impleme
 
 | Component | Owns | Must not own |
 |---|---|---|
-| Content script | Letterboxd DOM inspection, movie identity extraction, idempotency, request dispatch, extension-owned rendering | `fetch`/XHR, credentials, TMDB response validation, actor matching |
+| Content script | Letterboxd DOM inspection, movie identity extraction, idempotency, request dispatch, extension-owned rendering, ADR 0013 native actor-link resolution | `fetch`/XHR, credentials, TMDB response validation, fuzzy or cross-page actor matching |
 | MV3 service worker | Runtime-message validation, the single backend request, backend-response validation, error translation | TMDB credentials, response normalization, persistent correctness state |
 | Cloudflare Worker | Request validation, TMDB credential and call, TMDB response validation, normalization, cache, rate limiting | Letterboxd DOM knowledge, user accounts, a generic proxy, a database |
 
@@ -32,7 +33,7 @@ The boundaries are deliberate trust boundaries. Letterboxd DOM, callers of the p
 
 ## 3. Verified Runtime Flow
 
-1. At `document_idle`, the content script checks that it is on a supported film page and locates the server-rendered cast area.
+1. At `document_idle`, the content script checks that it is on a supported film page or film tab route and locates the server-rendered cast tab panel.
 2. It reads the TMDB type and ID from the page's existing TMDB signals and requires a positive movie ID with agreeing signals. Missing, invalid, conflicting, or TV identity causes a silent stop with no message.
 3. It checks its own idempotency marker. If already enhanced, it stops.
 4. It sends `{ type: "get-cast", tmdbId }` to the service worker.
@@ -41,7 +42,7 @@ The boundaries are deliberate trust boundaries. Letterboxd DOM, callers of the p
 7. On a cache miss, the Worker applies the native rate limiter with `get-cast:{tmdbMovieId}` and calls TMDB `GET /movie/{id}/credits` with its Bearer secret. Numeric thresholds remain deployment configuration.
 8. The Worker validates the TMDB payload, normalizes the fields Lettercast uses, caches an eligible result, and returns the narrow JSON contract.
 9. The service worker validates the backend response and returns a typed success or failure to the content script.
-10. On success, the content script inserts one extension-owned cast block. Profile images load directly from TMDB's CDN. On any failure, Letterboxd's page remains usable and unchanged.
+10. On success, the content script resolves optional actor links from the page's own native actor anchors (ADR 0013). It then appends one extension-owned cast block as the last child of the cast tab panel, so the block is visible only while Letterboxd shows the Cast tab. Profile images load directly from TMDB's CDN. On any failure, Letterboxd's page remains usable and unchanged; a link-resolution failure only omits links.
 
 No step may depend on service-worker memory surviving suspension. Optional in-memory de-duplication may only be best-effort.
 
@@ -60,6 +61,23 @@ The 2026-09-08 [TMDB markup spike](spikes/2026-09-08-letterboxd-tmdb-markup.md) 
 
 The current tracking value is uppercase `TMDB`, not the proposal's earlier `TMDb`. The body attributes, outbound TMDB link, and full sampled cast lists were present in initial HTML; the rendered Dune DOM matched the initial cast count. These are verified implementation facts, not a public Letterboxd contract.
 
+The [2026-10-29 cast-tab spike](spikes/2026-10-29-letterboxd-cast-tabs-and-actor-links.md) verified the tab structure around the cast panel:
+
+```html
+<div class="cast-crew-details-tabs">
+  <div class="tablist" role="tablist">…tab links to /film/{slug}/{cast|crew|details|genres|releases}/…</div>
+  <div id="tab-panel-cast" role="tabpanel">
+    <div class="cast-list text-sluglist">
+      <a title="{character}" href="/actor/{slug}/" class="text-slug tooltip">{name}</a>…
+      <span id="cast-overflow" class="sluglist-overflow">…more actor anchors…</span>
+    </div>
+  </div>
+  <div id="tab-panel-crew" role="tabpanel" hidden="until-found">…</div>
+</div>
+```
+
+Letterboxd switches tabs client-side. It updates the URL through the history API and toggles `hidden="until-found"` on panels without reloading. Tab routes load directly with the same identity signals and cast panel. Children of a hidden panel are not rendered, which is why ADR 0012 mounts the block inside the panel. No tab-state tracking is needed.
+
 The initial implementation therefore uses `document_idle` with no `MutationObserver`. If required markup is absent, it declines gracefully. A document-wide or permanent observer is prohibited. A bounded, narrowly scoped observer may be considered only if later evidence establishes asynchronous markup; it must not be added speculatively.
 
 The outbound `/movie/{id}/` link is the primary identity signal. `body[data-tmdb-id]` and `body[data-tmdb-type="movie"]` corroborate it. The content script must decline before sending a message if the signals are absent, disagree, are invalid, or indicate a non-movie. Markup fixtures and periodic live checks must protect against drift. Logged-in, localized, experimental, and user-scoped variants were not verified by the spike.
@@ -68,13 +86,19 @@ R-15 verified that the current Task (2025) miniseries page exposes an empty movi
 
 ## 5. Rendering Model
 
-Lettercast renders a new block built entirely from TMDB results, ordered using TMDB data. Letterboxd's own cast nodes remain untouched. This structurally avoids false actor attribution and guarantees that extension failure cannot corrupt the native cast display.
+Lettercast renders a new block built entirely from TMDB results, ordered using TMDB data, and appends it as the last child of `#tab-panel-cast`. Letterboxd's own cast nodes remain untouched; they are never modified, moved, reordered, or removed. Displayed actor data comes only from TMDB, and extension failure cannot corrupt the native cast display.
 
 Rendering must be idempotent and use `textContent` and safe property/attribute assignment, never external-data `innerHTML`. Missing character data is omitted. Missing or failed images use a neutral placeholder.
 
 The v1 implementation renders at most ten members in TMDB order in a responsive grid. Portraits reserve an 80-by-120 CSS-pixel area, and the renderer supplies required TMDB attribution. These are implementation details, not additional identity or matching rules.
 
-No actor-to-actor matching is permitted, including matching by name, position, slug, or inferred ordering.
+Actor association is limited to ADR 0013. A card may become a link to the actor's Letterboxd page only when all of the following hold:
+
+- The URL comes from a native anchor inside `#tab-panel-cast .cast-list`, including the overflow list. It must validate as `https://letterboxd.com/actor/{slug}/`, where the slug is lowercase alphanumeric-and-hyphen or `contributor:{id}`, with no query or fragment.
+- The TMDB name and native anchor text are equal after only Unicode NFC normalization, whitespace collapse, trim, and locale-independent lower-casing.
+- The match is unique on both sides: one distinct URL on the page and one distinct TMDB person among the rendered members.
+
+Links use `target="_blank"` and `rel="noopener noreferrer"`. Unmatched or ambiguous members render unlinked. Matching never alters displayed TMDB data. Fuzzy, similarity, diacritic-stripping, transliteration, partial-name, position, order, slug, character, or cross-page matching remains prohibited, as do constructed actor URLs.
 
 ## 6. Message and Backend Contracts
 
@@ -143,6 +167,8 @@ The content script performs no `fetch` or XHR. All Lettercast API traffic flows 
 
 On 2026-09-08, the [CSP and image-loading spike](spikes/2026-09-08-letterboxd-csp-tmdb-images.md) found no CSP or report-only CSP response header and no CSP meta element on three sampled Letterboxd film pages. A live Chromium probe successfully loaded an inserted `w185` TMDB profile image with no `securitypolicyviolation`. This verifies current compatibility, not a permanent guarantee. Image errors must degrade to a placeholder without affecting the page.
 
+Actor-link resolution (ADR 0013) is local DOM work that makes no request. Its links target only `https://letterboxd.com/actor/…`, and navigation occurs only on an explicit user click.
+
 Only the TMDB movie ID is sent as Letterboxd-derived application data. Lettercast must not send page URLs, titles, cookies, account state, usernames, ratings, reviews, lists, or DOM content. Direct image requests necessarily request a TMDB profile path from TMDB's CDN; this path originates in the validated backend response, not from Letterboxd identity extraction.
 
 Manifest access must be limited to the supported Letterboxd page match and the Cloudflare Worker origin required by the service worker. Do not request `cookies`, `tabs`, `storage`, broad host access, or speculative permissions. Use HTTPS everywhere and the default MV3 extension CSP. Do not add remote scripts, `eval`, `new Function`, analytics, or a telemetry vendor.
@@ -206,10 +232,13 @@ DOM work is bounded, idempotent, and performed once. Images should be lazy-loade
 Tests must follow the runtime boundaries:
 
 - Pure tests cover ID parsing, boundary schemas, normalization, error mapping, cache keys, ordering, and any chosen cast cap.
-- DOM fixture tests cover the verified `body` attributes, uppercase `TMDB` link, initial cast container, graceful selector failure, idempotency, partial data, and safe rendering.
+- DOM fixture tests cover the verified `body` attributes, uppercase `TMDB` link, initial cast container, graceful selector failure, idempotency, partial data, and safe rendering. They also cover v1.1.0 behaviour:
+  - tab routes, placement inside the cast panel, and unchanged native children;
+  - visibility driven by the panel's `hidden` attribute;
+  - exact unique actor-link resolution, including ambiguity, invalid-URL, and normalization cases.
 - Service-worker tests cover cold-start-safe message handling, request validation, backend validation, and error translation.
 - Cloudflare runtime tests cover absent-Origin admission, incorrect supplied-Origin rejection, exact CORS behavior, request checks, TMDB validation, Cache API behavior, secrets, and the selected rate-limit configuration.
-- A small browser smoke test covers extension loading, real runtime messaging, rendering, image fallback, and service-worker wake behavior against local fixtures.
+- A small browser smoke test covers extension loading, real runtime messaging, rendering, image fallback, service-worker wake behavior, hidden/visible cast-tab state, direct tab-route loads, and new-tab actor links against local fixtures.
 
 Vitest runs deterministic contract, DOM, service-worker, Cloudflare runtime, and cross-boundary integration tests. Playwright runs a limited packaged-extension smoke suite against local fixtures with all external requests intercepted. Root lint, type-check, test, build, security, and browser checks are composed by `corepack pnpm run ci` and require no production credential.
 
@@ -217,13 +246,13 @@ Live Letterboxd markup and CSP checks remain periodic evidence gathering, not de
 
 ## 14. V1 Scope and Non-Goals
 
-V1 includes movie-page detection, verified TMDB ID extraction, Model B cast rendering, one service-worker message, the narrow Worker endpoint, TMDB validation/normalization, backend caching, coarse abuse mitigation, least-privilege permissions, graceful degradation, and required TMDB attribution.
+V1 includes movie-page and film-tab-route detection, verified TMDB ID extraction, Model B cast rendering inside the native cast tab panel, ADR 0013 actor links, one service-worker message, the narrow Worker endpoint, TMDB validation/normalization, backend caching, coarse abuse mitigation, least-privilege permissions, graceful degradation, and required TMDB attribution.
 
-V1 excludes TV/miniseries support, actor matching, fuzzy search, lists, reviews, diary entries, person pages, embedded movie cards, Firefox release, settings UI, user accounts, a database, client storage, offline support, analytics, recommendations, and arbitrary TMDB metadata. React, a design system, and repository abstractions are not architectural requirements.
+V1 excludes TV/miniseries support, fuzzy or cross-page actor matching, TMDB person endpoints, fuzzy search, lists, reviews, diary entries, person pages, embedded movie cards, Firefox release, settings UI, user accounts, a database, client storage, offline support, analytics, recommendations, and arbitrary TMDB metadata. React, a design system, and repository abstractions are not architectural requirements.
 
 ## 15. Decision and Evidence Records
 
-The accepted ADRs in [`docs/decisions/`](decisions/) protect the architecture's major decisions. ADR 0008 replaces ADR 0006's IP-based rate-limit key with `get-cast:{tmdbMovieId}`; ADR 0006's cache, no-client-storage, and native-binding decisions remain accepted. ADR 0009 clarifies that direct profile-image subresources do not weaken the service worker's exclusive ownership of application/API egress or permit additional Letterboxd-derived data collection. ADR 0010 supersedes exact-Origin admission and treats the narrow cast endpoint as unauthenticated and public.
+The accepted ADRs in [`docs/decisions/`](decisions/) protect the architecture's major decisions. ADR 0008 replaces ADR 0006's IP-based rate-limit key with `get-cast:{tmdbMovieId}`; ADR 0006's cache, no-client-storage, and native-binding decisions remain accepted. ADR 0009 clarifies that direct profile-image subresources do not weaken the service worker's exclusive ownership of application/API egress or permit additional Letterboxd-derived data collection. ADR 0010 supersedes exact-Origin admission and treats the narrow cast endpoint as unauthenticated and public. ADR 0012 mounts the block inside the native cast tab panel and accepts film tab routes. ADR 0013 narrowly amends ADR 0004's matching prohibition to allow exact, unique, same-page actor-link resolution.
 
 The completed notes in [`docs/spikes/`](spikes/) are evidence records. They support current implementation details but do not make Letterboxd markup or operational headers stable public contracts.
 
@@ -231,6 +260,6 @@ The completed notes in [`docs/spikes/`](spikes/) are evidence records. They supp
 
 The original spikes, rate-limit key, and extension admission model are resolved. ADR 0010 is deployed in production and its absent-, exact-, incorrect-, malformed-, and wildcard-Origin behavior is verified. Remaining uncertainty is operational:
 
-1. **Markup variability — operational risk.** Logged-in, localized, experimental, and future Letterboxd variants remain unsampled. Fixtures, graceful decline, and periodic live verification are the mitigation.
+1. **Markup variability — operational risk.** Logged-in, localized, experimental, and future Letterboxd variants remain unsampled. This includes tab hiding, tab routes, and native actor-anchor markup. Fixtures, graceful decline (including unlinked cards), and periodic light, manual live verification are the mitigation. Automated live probing can trigger Letterboxd bot challenges, which must never be bypassed.
 
 No architectural question remains open. R-14 live browser acceptance passed after the ADR 0010 rollout. Remaining graceful-failure and image acceptance work does not justify adding identity, storage, broader permissions, another endpoint, or wildcard CORS.
